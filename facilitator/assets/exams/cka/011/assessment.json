@@ -1,0 +1,610 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "ops-access",
+      "machineHostname": "ckad9999",
+      "question": "The file `/tmp/exam/q1/ops.kubeconfig` on this machine describes the lab cluster. It defines the cluster `airops` and the user `tower-ops`, and a single context named `bootstrap` that binds them.\n\nAdd a second context to that file, named `tower`, which uses the same cluster and the same user but selects the namespace `ops-access` by default, and make `tower` the current context.\n\nDo not remove or alter the `bootstrap` context, and do not change the cluster or user entries.\n\nWhen you are finished, `kubectl --kubeconfig /tmp/exam/q1/ops.kubeconfig get pods` must list the Pods of the `ops-access` namespace without `-n` being given.",
+      "concepts": [
+        "kubeconfig",
+        "cluster-architecture",
+        "authentication"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The tower context selects the cluster, user and namespace",
+          "verificationScriptFile": "q1_s1_validate_context.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "tower is the current context and bootstrap is intact",
+          "verificationScriptFile": "q1_s2_validate_current.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The kubeconfig resolves to the ops-access namespace",
+          "verificationScriptFile": "q1_s3_validate_default_namespace.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "ops-charts",
+      "machineHostname": "ckad9999",
+      "question": "An unpacked Helm chart for the beacon service is on this machine at `/tmp/exam/q2/beacon-chart`.\n\nInstall it into the namespace `ops-charts` as a release named `beacon`, overriding the chart value `replicaCount` with `2`.\n\nThe beacon service then goes live, so upgrade the same release to set the chart value `message` to `active`, keeping `2` replicas.\n\nWhen you are finished the release `beacon` must be in the `deployed` status at revision `2`, its Deployment must have `2` ready replicas, and the running containers must carry the new message.",
+      "concepts": [
+        "helm",
+        "package-management",
+        "cluster-architecture"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Release beacon is deployed at revision 2",
+          "verificationScriptFile": "q2_s1_validate_release.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The Deployment has 2 ready replicas",
+          "verificationScriptFile": "q2_s2_validate_replicas.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The upgraded value reached the running containers",
+          "verificationScriptFile": "q2_s3_validate_value.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "ops-metrics",
+      "machineHostname": "ckad9999",
+      "question": "Capacity reporting on this cluster does not work: `kubectl top node` and `kubectl top pod` both fail because the Metrics API is not served.\n\nA manifest that deploys the metrics server is on this machine at `/tmp/exam/q3/metrics-server.yaml`. The namespace `ops-metrics` runs a Deployment named `radar-feed` whose Pods have two containers, `feed` and `relay`.\n\nDeploy the metrics server from that manifest and make the Metrics API work on this cluster.\n\nDo not change any kubelet configuration, and do not change the certificates of any node.\n\nWhen you are finished `kubectl top node` must report usage for every node in the cluster, and `kubectl top pod -n ops-metrics --containers` must report usage for both containers of every `radar-feed` Pod.",
+      "concepts": [
+        "cluster-architecture",
+        "metrics",
+        "observability"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The Metrics API is registered and available",
+          "verificationScriptFile": "q3_s1_validate_apiservice.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "kubectl top node reports usage for every node",
+          "verificationScriptFile": "q3_s2_validate_top_node.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "kubectl top pod --containers reports both containers",
+          "verificationScriptFile": "q3_s3_validate_top_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "4",
+          "description": "The metrics server runs in kube-system and is ready",
+          "verificationScriptFile": "q3_s4_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "net-radar",
+      "machineHostname": "ckad9999",
+      "question": "The `net-radar` namespace runs three Pods. `radar` (label `app=radar`) is a client. `beacon` (label `app=beacon`) and `archive` (label `app=archive`) are servers, and each of them listens on **both** TCP `5555` and TCP `6666`.\n\nOnly two of those four paths are approved traffic:\n\n- `radar` to `beacon` on TCP `5555`\n- `radar` to `archive` on TCP `6666`\n\nCreate a NetworkPolicy named `radar-egress` in the `net-radar` namespace that applies to the Pods labelled `app=radar` and permits exactly those two paths and nothing else leaving them. The policy must restrict `Egress` only, and must not contain a rule that permits all outgoing traffic.\n\nConnectivity here is tested by Pod IP, so name resolution is not required.\n\nWhen you are finished `radar` must reach `beacon` on `5555` and `archive` on `6666`, and must **not** be able to reach `beacon` on `6666` or `archive` on `5555`.\n\nDo not change any Pod, Service or label.",
+      "concepts": [
+        "networking",
+        "network-policies",
+        "egress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "radar-egress restricts egress and has no blanket allow rule",
+          "verificationScriptFile": "q4_s1_validate_policy.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "radar can reach beacon on port 5555",
+          "verificationScriptFile": "q4_s2_validate_beacon_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "radar can reach archive on port 6666",
+          "verificationScriptFile": "q4_s3_validate_archive_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "radar is denied beacon on port 6666",
+          "verificationScriptFile": "q4_s4_validate_beacon_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "5",
+          "description": "radar is denied archive on port 5555",
+          "verificationScriptFile": "q4_s5_validate_archive_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "net-apron",
+      "machineHostname": "ckad9999",
+      "question": "A network audit of the `net-apron` namespace found that the Pod `apron` can open connections that are not approved: it reaches `fuel` on TCP `7001` and `gate` on TCP `7002`.\n\n`gate` (label `app=gate`) and `fuel` (label `app=fuel`) each listen on both TCP `7001` and TCP `7002`. The only approved traffic leaving `apron` is to `gate` on `7001` and to `fuel` on `7002`. Egress from `apron` is already governed by a NetworkPolicy named `apron-egress`, which the platform team owns: keep it, do not delete it, and do not give it a rule that permits all outgoing traffic.\n\nBring the namespace back in line with the approved traffic.\n\nWhen you are finished `apron` must still reach `gate` on `7001` and `fuel` on `7002`, and must no longer be able to reach `gate` on `7002` or `fuel` on `7001`.\n\nDo not change any Pod or label.",
+      "concepts": [
+        "troubleshooting",
+        "network-policies",
+        "egress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "apron-egress still exists and still restricts egress",
+          "verificationScriptFile": "q5_s1_validate_policy.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "The approved paths still work",
+          "verificationScriptFile": "q5_s2_validate_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "apron is denied gate on port 7002",
+          "verificationScriptFile": "q5_s3_validate_gate_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "apron is denied fuel on port 7001",
+          "verificationScriptFile": "q5_s4_validate_fuel_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "dns-tower",
+      "machineHostname": "ckad9999",
+      "question": "This question is set on a **separate cluster** from the rest of this lab. Reach its only node with `ssh aux` from this machine; `kubectl` on that node is already configured for that cluster. Do not run this question against the lab cluster.\n\nThat cluster serves its Services under the usual `cluster.local` domain. The tower team is migrating to the domain `airops.internal` and needs both to work during the migration.\n\nPerform the following against that cluster:\n\n1. Save a backup of the cluster's current CoreDNS configuration into `/tmp/exam/q6/coredns-backup.yaml` on **this** machine, in a form that could be applied back with `kubectl apply -f` to restore it.\n2. Make every Pod in that cluster able to resolve `SERVICE.NAMESPACE.svc.airops.internal` **in addition to** `SERVICE.NAMESPACE.svc.cluster.local`.\n\nDo not create additional Services, do not change any Pod's `dnsPolicy` or `dnsConfig`, and do not delete or scale the CoreDNS Deployment.\n\nA Service named `tower` and a Pod named `probe` exist in the `dns-tower` namespace of that cluster to test with. When you are finished, both `tower.dns-tower.svc.airops.internal` and `tower.dns-tower.svc.cluster.local` must resolve to the `tower` Service's cluster IP from inside that Pod.",
+      "concepts": [
+        "coredns",
+        "dns",
+        "cluster-architecture"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The CoreDNS backup was captured and can be applied back",
+          "verificationScriptFile": "q6_s1_validate_backup.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Names resolve under the airops.internal domain",
+          "verificationScriptFile": "q6_s2_validate_new_domain.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "Names still resolve under cluster.local",
+          "verificationScriptFile": "q6_s3_validate_cluster_local.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "4",
+          "description": "The CoreDNS Deployment is intact and available",
+          "verificationScriptFile": "q6_s4_validate_coredns_intact.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "dns-apron",
+      "machineHostname": "ckad9999",
+      "question": "The namespace `dns-apron-wx` runs a Service named `wx-feed`. A new briefing Pod has to reach that Service by its **short name** `wx-feed`, without being given the namespace and without any change to cluster DNS.\n\nCreate a Pod named `briefing` in the namespace `dns-apron`, using image `busybox:1.36` and a command that keeps it running, configured so that:\n\n- its DNS search list also contains `dns-apron-wx.svc.cluster.local`\n- its DNS `ndots` option is set to `1`\n- it keeps the `ClusterFirst` DNS policy\n\nWhen you are finished, resolving the bare name `wx-feed` from inside `briefing` must return the cluster IP of the `wx-feed` Service.",
+      "concepts": [
+        "dns",
+        "networking",
+        "pod-configuration"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The Pod declares the required search domain and ndots option",
+          "verificationScriptFile": "q7_s1_validate_dnsconfig.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The short name wx-feed resolves from inside the Pod",
+          "verificationScriptFile": "q7_s2_validate_resolution.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The Pod is running with the ClusterFirst DNS policy",
+          "verificationScriptFile": "q7_s3_validate_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "stor-cargo",
+      "machineHostname": "ckad9999",
+      "question": "Two PersistentVolumes are available to the cargo team: `cargo-fast` and `cargo-slow`. Both offer `5Gi` of `ReadWriteOnce` storage and are told apart only by their labels.\n\nIn the namespace `stor-cargo`:\n\n1. Create a PersistentVolumeClaim named `cargo-claim` that requests `2Gi` of `ReadWriteOnce` storage and binds to `cargo-fast` specifically. It must not use any StorageClass, and you must not name the volume directly.\n2. Create a Deployment named `cargo-hold` with `1` replica, one container named `hold` running image `nginx:1.27.4`, which mounts that claim at `/var/cargo`.\n\nWhen you are finished the claim must be `Bound` to `cargo-fast` and the Deployment must have `1` ready replica.",
+      "concepts": [
+        "storage",
+        "persistent-volumes",
+        "persistent-volume-claims"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "cargo-claim is bound to the cargo-fast volume",
+          "verificationScriptFile": "q8_s1_validate_binding.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The claim requests 2Gi ReadWriteOnce with no StorageClass",
+          "verificationScriptFile": "q8_s2_validate_claim_spec.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "cargo-hold is ready and mounts the claim at /var/cargo",
+          "verificationScriptFile": "q8_s3_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "wl-baggage",
+      "machineHostname": "ckad9999",
+      "question": "The namespace `wl-baggage` runs a StatefulSet named `belt` with `3` replicas. Each Pod gets its own PersistentVolumeClaim from the StatefulSet's `data` volume claim template.\n\nThe baggage team wants the per-Pod storage of a replica to be reclaimed automatically when the StatefulSet is **scaled in**, but kept when the StatefulSet itself is **deleted**.\n\nConfigure `belt` accordingly, then scale it down to `1` replica.\n\nWhen you are finished `belt` must have `1` ready replica, the claim belonging to the remaining Pod must still exist, and the claims that belonged to the removed Pods must be gone.",
+      "concepts": [
+        "statefulsets",
+        "storage",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "belt declares the required PVC retention policy",
+          "verificationScriptFile": "q9_s1_validate_retention_policy.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "belt is scaled to 1 ready replica",
+          "verificationScriptFile": "q9_s2_validate_scale.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The removed replicas' claims are gone and the survivor's remains",
+          "verificationScriptFile": "q9_s3_validate_claims.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "rbac-tower",
+      "machineHostname": "ckad9999",
+      "question": "A flight-plan importer needs to be able to file new configuration into the `rbac-tower` namespace, and to do nothing else there.\n\nIn the namespace `rbac-tower` create a ServiceAccount named `flightplan-writer`, and a Role and a RoleBinding both also named `flightplan-writer`, so that this ServiceAccount may **only create** ConfigMaps and Secrets in that namespace.\n\nIt must not be able to read, list, update or delete them, and must have no access to any other resource.",
+      "concepts": [
+        "rbac",
+        "service-accounts",
+        "least-privilege"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The ServiceAccount, Role and RoleBinding exist",
+          "verificationScriptFile": "q10_s1_validate_objects.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "The account can create ConfigMaps and Secrets",
+          "verificationScriptFile": "q10_s2_validate_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The account cannot do anything else in the namespace",
+          "verificationScriptFile": "q10_s3_validate_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "api-beacon",
+      "machineHostname": "ckad9999",
+      "question": "The namespace `api-beacon` contains a ServiceAccount named `beacon-reader` which is already allowed to read ConfigMaps in that namespace.\n\nCreate a Pod named `beacon-probe` in `api-beacon`, using image `curlimages/curl:8.11.1` and a command that keeps it running, which runs under that ServiceAccount.\n\nFrom inside that Pod, ask the Kubernetes API for the list of ConfigMaps in the `api-beacon` namespace, authenticating with the Pod's own ServiceAccount token and verifying the API server with the cluster CA certificate that is mounted alongside it. Do not disable certificate verification.\n\nWrite the API server's JSON response into `/tmp/exam/q11/configmaps.json` on **this** machine.",
+      "concepts": [
+        "cluster-architecture",
+        "service-accounts",
+        "api"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "beacon-probe runs under the beacon-reader ServiceAccount",
+          "verificationScriptFile": "q11_s1_validate_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The captured response is a genuine ConfigMapList from the API",
+          "verificationScriptFile": "q11_s2_validate_response.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "ds-deice",
+      "machineHostname": "ckad9999",
+      "question": "Every node in this cluster, control plane included, must run a copy of the de-icing agent.\n\nIn the namespace `ds-deice` create a DaemonSet named `deice` whose Pods:\n\n- carry the labels `app=deice` and `zone=apron`\n- have exactly one container, named `deice`, running image `nginx:1.27.4`\n- request `10m` of CPU and `16Mi` of memory\n- run on **every** node of the cluster, including the control plane node\n\nWhen you are finished the DaemonSet must have one ready Pod on each node.",
+      "concepts": [
+        "daemonsets",
+        "tolerations",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The DaemonSet has one container named deice with the approved image",
+          "verificationScriptFile": "q12_s1_validate_container.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "A ready Pod runs on every node, including the control plane",
+          "verificationScriptFile": "q12_s2_validate_all_nodes.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The Pods carry the required labels",
+          "verificationScriptFile": "q12_s3_validate_labels.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "The container requests 10m CPU and 16Mi memory",
+          "verificationScriptFile": "q12_s4_validate_requests.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "namespace": "node-crictl",
+      "machineHostname": "ckad9999",
+      "question": "A Pod named `tug` is running in the namespace `node-crictl`, on one of the worker nodes. You can reach the nodes of this cluster from here with `ssh controlplane`, `ssh node01` and `ssh node02`.\n\nFind the node it runs on, and on that node use `crictl` to inspect the container belonging to that Pod. Then, on **this** machine:\n\n1. Write the container's ID and its `info.runtimeType`, separated by a single space on one line, into `/tmp/exam/q13/container.txt`\n2. Write that container's logs into `/tmp/exam/q13/container.log`\n\nEach file must contain only what is asked for.",
+      "concepts": [
+        "cluster-architecture",
+        "container-runtime",
+        "troubleshooting"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "container.txt names the running container and its runtime type",
+          "verificationScriptFile": "q13_s1_validate_container_txt.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "container.log holds that container's logs",
+          "verificationScriptFile": "q13_s2_validate_container_log.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "namespace": "certs-tower",
+      "machineHostname": "ckad9999",
+      "question": "Perform two certificate tasks against the control plane node of this cluster, which you can reach with `ssh controlplane`.\n\n1. Write the expiry date of the **etcd server** certificate, exactly as `openssl` reports it for `/etc/kubernetes/pki/etcd/server.crt`, into `/tmp/exam/q14/etcd-expiry.txt` on **this** machine. The file must contain that date and nothing else.\n2. Renew the `apiserver-kubelet-client` certificate, and only that one, using `kubeadm`.\n\nEvery other certificate of the cluster must keep the issue date it has now.",
+      "concepts": [
+        "certificates",
+        "kubeadm",
+        "cluster-architecture"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "etcd-expiry.txt matches the live etcd server certificate",
+          "verificationScriptFile": "q14_s1_validate_expiry_file.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The apiserver-kubelet-client certificate has been renewed",
+          "verificationScriptFile": "q14_s2_validate_renewed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The other control plane certificates were left alone",
+          "verificationScriptFile": "q14_s3_validate_others_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "namespace": "kustom-flight-prod",
+      "machineHostname": "ckad9999",
+      "question": "The flight board is deployed from the Kustomize configuration at `/tmp/exam/q15/flightboard` on this machine, which has a `base` and the two overlays `staging` and `prod`. They are currently live in the namespaces `kustom-flight-staging` and `kustom-flight-prod`, having been applied with:\n\n```\nkubectl kustomize /tmp/exam/q15/flightboard/staging | kubectl apply -f -\nkubectl kustomize /tmp/exam/q15/flightboard/prod | kubectl apply -f -\n```\n\nThe board is moving from its own refresh loop to a HorizontalPodAutoscaler. Using that Kustomize configuration:\n\n1. Remove the ConfigMap `refresh-config` from the configuration completely, so that neither overlay builds it any more, and make sure it no longer exists in either namespace\n2. Add a HorizontalPodAutoscaler named `flightboard` for the Deployment `flightboard`, with `2` minimum and `4` maximum replicas, scaling at `60%` average CPU utilisation\n3. In `prod` only, the HorizontalPodAutoscaler must allow up to `6` replicas\n4. Apply your changes so that both namespaces reflect them\n\nBoth overlays must still build without error.",
+      "concepts": [
+        "kustomize",
+        "configuration-management",
+        "autoscaling"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Both overlays build and no longer contain refresh-config",
+          "verificationScriptFile": "q15_s1_validate_build.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "The staging autoscaler has the required configuration",
+          "verificationScriptFile": "q15_s2_validate_staging_hpa.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The prod autoscaler allows up to 6 replicas",
+          "verificationScriptFile": "q15_s3_validate_prod_hpa.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The refresh-config ConfigMap is gone from both namespaces",
+          "verificationScriptFile": "q15_s4_validate_configmap_gone.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "namespace": "qos-hangar",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `hangar-ops` in the namespace `qos-hangar` runs `2` replicas of a single container named `ops`. Its Pods are currently assigned the `BestEffort` quality of service class, which makes them the first to be killed when a node runs out of memory.\n\nGive that workload the strongest quality of service class Kubernetes offers, using `50m` of CPU and `64Mi` of memory as the container's figures.\n\nKeep `2` replicas and keep exactly one container, named `ops`.",
+      "concepts": [
+        "resource-management",
+        "pod-lifecycle",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Every hangar-ops Pod is in the Guaranteed QoS class",
+          "verificationScriptFile": "q16_s1_validate_qos.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The container is configured with the required CPU and memory figures",
+          "verificationScriptFile": "q16_s2_validate_resources.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "The Deployment still has 2 ready replicas and one container",
+          "verificationScriptFile": "q16_s3_validate_shape.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "namespace": "svc-iptables",
+      "machineHostname": "ckad9999",
+      "question": "The namespace `svc-iptables` runs a Pod named `apronctl` which serves HTTP on container port `80`. It has no Service yet.\n\n1. Expose that Pod inside the cluster with a ClusterIP Service named `apronctl`, which accepts traffic on port `8080` and forwards it to the Pod's port `80`\n2. kube-proxy programmes every node's packet filter for each Service. On the control plane node, which you can reach with `ssh controlplane`, capture the rules that kube-proxy has created for this Service into `/tmp/exam/q17/rules.txt` on **this** machine\n\nThe file must contain the real rules as the node reports them.",
+      "concepts": [
+        "services",
+        "kube-proxy",
+        "networking"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The apronctl Service exposes the Pod on port 8080",
+          "verificationScriptFile": "q17_s1_validate_service.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "rules.txt holds the node's real rules for that Service",
+          "verificationScriptFile": "q17_s2_validate_rules.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    }
+  ]
+}

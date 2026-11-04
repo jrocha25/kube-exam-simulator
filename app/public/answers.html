@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Answers - CK-X Simulator</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/results.css">
+    <link rel="stylesheet" href="/css/answers.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <main class="answers-container">
+            <!-- Loading state -->
+            <div id="pageLoader" class="page-loader">
+                <div class="spinner"></div>
+                <p>Loading exam answers...</p>
+            </div>
+
+            <!-- Error message -->
+            <div id="errorMessage" class="error-message" style="display: none;">
+                <i class="fas fa-exclamation-circle"></i>
+                <p id="errorText">An error occurred while loading the answers.</p>
+                <button id="retryButton" class="button">Retry</button>
+            </div>
+
+            <!-- Answers content -->
+            <div id="answersContent" class="answers-content" style="display: none;">
+                <div class="answers-header">
+                    <h2>Exam Answers</h2>
+                    <div class="answers-actions">
+                        <button id="backToResultsBtn" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Back to Results
+                        </button>
+                    </div>
+                </div>
+                <div id="examInfoBox" class="exam-info-box">
+                    <p id="examId">Exam ID: Loading...</p>
+                </div>
+                <div id="markdownContent" class="markdown-content">
+                    <!-- Markdown content will be rendered here -->
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <p style="text-align: center;">&copy; <span id="currentYear"></span> CK-X Simulator.</p>
+        </footer>
+    </div>
+
+    <script src="/js/answers.js"></script>
+    <script>
+        // Set the current year for copyright
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+    </script>
+</body>
+</html> 

@@ -1,0 +1,12 @@
+{
+  "lab": "cka-014",
+  "workerNodes": 3,
+  "clusterType": "kind",
+  "auxCluster": "kind",
+  "answers": "assets/exams/cka/014/answers.md",
+  "questions": "assessment.json",
+  "totalMarks": 100,
+  "lowScore": 50,
+  "mediumScore": 66,
+  "highScore": 85
+}

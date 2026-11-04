@@ -1,0 +1,123 @@
+# The image builds. Nothing is deployed from here.
+#
+# Each of the seven images is built and pushed to GHCR as
+# ghcr.io/<owner>/ck-x-simulator-<component>. A push to master moves :latest
+# for the images whose sources changed; a v* tag builds every image as :<tag>
+# and moves :latest with it; "Run workflow" rebuilds every :latest.
+#
+# Image names match scripts/house-keeping/build-and-push.sh and the image:
+# lines in docker-compose.yaml, so what lands here is what a plain ./start.sh
+# pulls. A change to an image's sources is live for everyone once this has
+# pushed it and they restart; --rebuild is the only other way to get it.
+#
+# GHCR creates a new package private. After the first run, set each
+# ck-x-simulator-* package to Public, or every ./start.sh asks for a login.
+#
+# Two of the Dockerfiles (jumphost, kind-cluster) branch on ARG TARGETARCH
+# with no else. BuildKit fills it in; a builder that leaves it empty produces
+# a jumphost with no kubectl and a cluster image whose kind download fails.
+
+name: images
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Which images to build. A push to master that touches none of an image's
+  # sources - a docs edit, a change to start.sh - leaves that image as it was.
+  # The facilitator's sources are its whole tree: its Dockerfile does
+  # COPY . ., which is how the exams ship.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.pick.outputs.components }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: filter
+        if: github.ref_type == 'branch' && github.event_name == 'push'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            webapp:          ['app/**', '.github/workflows/images.yml']
+            facilitator:     ['facilitator/**', '.github/workflows/images.yml']
+            nginx:           ['nginx/**', '.github/workflows/images.yml']
+            remote-terminal: ['remote-terminal/**', '.github/workflows/images.yml']
+            remote-desktop:  ['remote-desktop/**', '.github/workflows/images.yml']
+            jumphost:        ['jumphost/**', '.github/workflows/images.yml']
+            cluster:         ['kind-cluster/**', '.github/workflows/images.yml']
+
+      # Tags, manual runs and the very first push (no previous commit to diff
+      # against) build everything.
+      - id: pick
+        env:
+          ALL: '["webapp","facilitator","nginx","remote-terminal","remote-desktop","jumphost","cluster"]'
+          CHANGED: ${{ steps.filter.outputs.changes }}
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = push ] && [ "$REF_TYPE" = branch ] && [ -n "${BEFORE//0/}" ]; then
+            echo "components=${CHANGED:-[]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "components=$ALL" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.components != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJSON(needs.plan.outputs.components) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Every Dockerfile sits at the root of its context, which is named after
+      # the component except for these two.
+      - id: meta
+        env:
+          COMPONENT: ${{ matrix.component }}
+          OWNER: ${{ github.repository_owner }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          case "$COMPONENT" in
+            webapp)  context=app ;;
+            cluster) context=kind-cluster ;;
+            *)       context=$COMPONENT ;;
+          esac
+          image="ghcr.io/${OWNER,,}/ck-x-simulator-$COMPONENT"
+          tags="$image:latest"
+          [ "$REF_TYPE" = tag ] && tags="$image:$REF_NAME,$tags"
+          echo "context=$context" >> "$GITHUB_OUTPUT"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.meta.outputs.context }}
+          pull: true
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

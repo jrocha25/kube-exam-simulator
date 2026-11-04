@@ -1,0 +1,602 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "ops-probe",
+      "machineHostname": "ckad9999",
+      "question": "A static Pod named `node-probe` runs on the worker node `node01` and reports node health. It never reaches the `Running` state.\n\nThe Pod is defined by a manifest on `node01` itself, in the directory the kubelet watches. It is expected to read its configuration from a file that the node administrator placed under `/opt/probe-data`, and to expose that configuration inside the container at `/etc/probe`.\n\nYou can reach the node with `ssh node01`.\n\nInvestigate and bring the Pod to a healthy state.\n\nWhen you are finished the Pod `node-probe` must be `Running` in the `ops-probe` namespace, it must still be a static Pod on `node01`, it must still mount the node directory `/opt/probe-data` at `/etc/probe`, and it must still have exactly one container named `probe`. Do not create the Pod through the API server, and do not change what is stored under `/opt/probe-data`.",
+      "concepts": [
+        "troubleshooting",
+        "static-pods",
+        "kubelet"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Static Pod node-probe is Running on node01",
+          "verificationScriptFile": "q1_s1_validate_running.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "2",
+          "description": "The manifest mounts the node directory that actually holds the configuration",
+          "verificationScriptFile": "q1_s2_validate_hostpath.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The container reads a configuration file that exists",
+          "verificationScriptFile": "q1_s3_validate_config.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "sched-batch",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `batch-runner` in the `sched-batch` namespace is configured for `2` replicas that must run on the worker node `node01`. None of its Pods ever leave the `Pending` state.\n\n`node01` reports `Ready` and runs other workloads. Each replica asks for `3Gi` of memory and `50m` of CPU, which is a small fraction of what the node physically has.\n\nYou can reach the node with `ssh node01`.\n\nInvestigate and get the Deployment running.\n\nWhen you are finished both replicas must be `Running` on `node01`, the Deployment must still declare `2` replicas, it must still be pinned to `node01`, and its resource requests must be unchanged. Do not change the Deployment, and do not remove the pin.",
+      "concepts": [
+        "troubleshooting",
+        "kubelet",
+        "scheduling"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "node01 reports an allocatable memory that matches the node",
+          "verificationScriptFile": "q2_s1_validate_allocatable.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Both batch-runner replicas are Running on node01",
+          "verificationScriptFile": "q2_s2_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "dev-team",
+      "machineHostname": "ckad9999",
+      "question": "A new engineer needs read-only access to the `dev-team` namespace, authenticating with a client certificate rather than a ServiceAccount token.\n\nOn this machine, in `/tmp/exam/q3`:\n\n1. Generate a `2048`-bit RSA private key at `/tmp/exam/q3/mira.key` and a certificate signing request for the common name `mira` and the organization `developers`.\n\n2. Submit it to the cluster as a `CertificateSigningRequest` named `mira-access`, using the signer `kubernetes.io/kube-apiserver-client` and requesting the usage `client auth`. Approve it, and save the issued certificate to `/tmp/exam/q3/mira.crt`.\n\n3. Create a Role named `dev-reader` in the `dev-team` namespace that allows only `get`, `list` and `watch` on `pods` and `pods/log`, and a RoleBinding named `mira-reader` that grants it to the user `mira`.\n\n`mira` must be able to list Pods and read Pod logs in `dev-team`, and must not be able to delete Pods there or to list Pods in any other namespace.",
+      "concepts": [
+        "rbac",
+        "certificates",
+        "authentication"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "CertificateSigningRequest mira-access is approved and issued",
+          "verificationScriptFile": "q3_s1_validate_csr.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Role dev-reader and RoleBinding mira-reader are correct",
+          "verificationScriptFile": "q3_s2_validate_rbac.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "mira can read pods and logs in dev-team and nothing more",
+          "verificationScriptFile": "q3_s3_validate_permissions.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "kube-system",
+      "machineHostname": "ckad9999",
+      "question": "Take a backup of the cluster's etcd datastore.\n\netcd runs as a static Pod on the control plane node, which you can reach with `ssh controlplane`. The certificates it uses are declared in its own manifest under `/etc/kubernetes/manifests`.\n\n1. Save a snapshot to `/opt/etcd-backup/snapshot.db` **on the control plane node**, using the etcd v3 API and authenticating with the cluster's etcd certificates.\n\n2. Write the snapshot's status report, as JSON, to `/opt/etcd-backup/status.json` on the same node.\n\nDo not stop etcd, and do not restore or otherwise modify the running datastore.",
+      "concepts": [
+        "etcd",
+        "cluster-architecture",
+        "backup"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "A valid etcd snapshot exists at /opt/etcd-backup/snapshot.db",
+          "verificationScriptFile": "q4_s1_validate_snapshot.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The snapshot status report was written as JSON",
+          "verificationScriptFile": "q4_s2_validate_status.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The running etcd is untouched and the cluster is healthy",
+          "verificationScriptFile": "q4_s3_validate_cluster.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "node-maint",
+      "machineHostname": "ckad9999",
+      "question": "The worker node `node02` has to be taken out of service for maintenance.\n\nThe `node-maint` namespace runs the Deployment `shop-web` across both workers, plus the DaemonSet `log-shipper` which is expected to stay put.\n\n1. Safely evict the workloads from `node02` and mark it unschedulable, without evicting the DaemonSet's Pod and without waiting on Pods that use `emptyDir` volumes.\n\n2. Record the names of the `shop-web` Pods that were running on `node02` before the drain, one per line, in `/tmp/exam/q5/drained.txt` on this machine.\n\n3. Return `node02` to service afterwards.\n\nWhen you are finished `node02` must be schedulable again and all `4` `shop-web` replicas must be `Running`.",
+      "concepts": [
+        "node-maintenance",
+        "cluster-architecture",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "node02 is schedulable again",
+          "verificationScriptFile": "q5_s1_validate_schedulable.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "The drained pod names were recorded and shop-web is fully available",
+          "verificationScriptFile": "q5_s2_validate_drain_record.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "kube-system",
+      "machineHostname": "ckad9999",
+      "question": "Security review requires the API server to refuse anything below TLS 1.2 and to negotiate only the approved cipher suites.\n\nOn the control plane node, reachable with `ssh controlplane`, configure the `kube-apiserver` so that it runs with:\n\n- a minimum TLS version of `VersionTLS12`\n- exactly these cipher suites, in this order: `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256`\n\nThe API server is a static Pod, so the kubelet applies the change for you once the manifest is saved.\n\nThe cluster must still be reachable when you are finished: `kubectl get nodes` must work and the `kube-apiserver` Pod must be `Running`.",
+      "concepts": [
+        "cluster-architecture",
+        "static-pods",
+        "security"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "kube-apiserver runs with the required minimum TLS version",
+          "verificationScriptFile": "q6_s1_validate_tls_version.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "kube-apiserver runs with exactly the approved cipher suites",
+          "verificationScriptFile": "q6_s2_validate_ciphers.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The cluster is still reachable and the API server is Running",
+          "verificationScriptFile": "q6_s3_validate_cluster_up.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "svc-orders",
+      "machineHostname": "ckad9999",
+      "question": "In the `svc-orders` namespace, the Service `checkout` is supposed to front the two Pods of the `checkout` Deployment on TCP port `80`. Every request to it is refused, and the Deployment's own Pods are `Running` and healthy.\n\nA Pod named `probe` in the same namespace is available to test from.\n\nInvestigate and restore the Service.\n\nWhen you are finished the Service `checkout` must have `2` ready endpoints and `wget -qO- http://checkout` from the `probe` Pod must return the web server's page. The Service must keep the name `checkout`, stay a `ClusterIP` Service and keep serving on port `80`. Do not change the Deployment, its Pods or their labels.",
+      "concepts": [
+        "troubleshooting",
+        "services",
+        "endpoints"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Service checkout has two ready endpoints",
+          "verificationScriptFile": "q7_s1_validate_endpoints.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The Service still matches the shape it is required to keep",
+          "verificationScriptFile": "q7_s2_validate_service_shape.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "The probe Pod can fetch the service over its ClusterIP",
+          "verificationScriptFile": "q7_s3_validate_reachable.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "dns-check",
+      "machineHostname": "ckad9999",
+      "question": "This question is set on a **separate cluster** from the rest of this lab. Reach it with `ssh aux` from this machine; `kubectl` on that node is already pointed at it and needs no further configuration.\n\nOn that cluster, no Pod can resolve a name. Every lookup times out, including `kubernetes.default.svc.cluster.local`.\n\nThe CoreDNS Pods in `kube-system` are `Running` and report no restarts, and their logs are clean. A Pod named `ticker` in the `dns-check` namespace is available to test from.\n\nRestore name resolution for the whole cluster.\n\nDo not delete or scale the CoreDNS Deployment, do not change the CoreDNS Pods or their labels, and do not change any Pod's `dnsPolicy` or `dnsConfig`.\n\nWhen resolution works again, capture the output of `nslookup kubernetes.default.svc.cluster.local` run **inside the `ticker` Pod** into `/tmp/exam/q8/lookup.txt` on **this** machine, not on the `aux` node.",
+      "concepts": [
+        "troubleshooting",
+        "dns",
+        "services"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The cluster DNS Service selects the CoreDNS Pods",
+          "verificationScriptFile": "q8_s1_validate_selector.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The cluster DNS Service has endpoints",
+          "verificationScriptFile": "q8_s2_validate_endpoints.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "A Pod can resolve kubernetes.default",
+          "verificationScriptFile": "q8_s3_validate_resolution.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The lookup output was captured to /tmp/exam/q8/lookup.txt",
+          "verificationScriptFile": "q8_s4_validate_output.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "net-orders",
+      "machineHostname": "ckad9999",
+      "question": "The `net-orders` namespace runs the order service. The Pod `orders` carries the label `app=orders` and serves HTTP on port `80`; the Pods `gateway` and `reporting` are clients in the same namespace.\n\nCreate a NetworkPolicy named `orders-lockdown` in the `net-orders` namespace that applies to the `orders` Pod and controls both directions of its traffic:\n\n- **Inbound**: only Pods labelled `app=gateway` in the `net-orders` namespace may reach it, and only on TCP port `80`. Nothing else may reach it.\n- **Outbound**: it may reach Pods labelled `app=ledger` in the namespace labelled `tier=ledger`, on TCP port `80`. It must also still be able to resolve names using the cluster DNS service in the `kube-system` namespace, over both UDP and TCP port `53`. Nothing else may leave it.\n\nDo not change any existing Pod or Service, and do not add or remove any namespace label.",
+      "concepts": [
+        "networking",
+        "network-policies",
+        "security"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The policy applies to the orders Pod and declares both policy types",
+          "verificationScriptFile": "q9_s1_validate_policy_shape.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The gateway Pod can reach orders on port 80",
+          "verificationScriptFile": "q9_s2_validate_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The reporting Pod cannot reach orders",
+          "verificationScriptFile": "q9_s3_validate_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "Egress permits the ledger backend and cluster DNS, and nothing else",
+          "verificationScriptFile": "q9_s4_validate_egress.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "net-billing",
+      "machineHostname": "ckad9999",
+      "question": "In the `net-billing` namespace, the Pod `billing` must be able to reach the `invoice` Service on TCP port `80`. Every attempt times out.\n\n`billing` is deliberately restricted, and that restriction must stay in force: it may reach the invoice service and nothing else. In particular the Pod `archive` in the same namespace holds data that `billing` must never be able to read.\n\nInvestigate and restore the billing Pod's access.\n\nKeep the existing NetworkPolicy named `billing-egress`: do not delete it, and do not add a rule that permits all egress traffic. When you are finished `billing` must be able to fetch the `invoice` Service over its ClusterIP on port `80`, and must still be unable to reach the `archive` Pod.",
+      "concepts": [
+        "troubleshooting",
+        "network-policies",
+        "networking"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The billing-egress policy still exists and still restricts egress",
+          "verificationScriptFile": "q10_s1_validate_policy_kept.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "billing can reach the invoice service on port 80",
+          "verificationScriptFile": "q10_s2_validate_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "billing still cannot reach the archive Pod",
+          "verificationScriptFile": "q10_s3_validate_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "svc-edge",
+      "machineHostname": "ckad9999",
+      "question": "The `svc-edge` namespace runs the Deployment `edge-web`, whose container declares a **named** port.\n\n1. Create a `ClusterIP` Service named `edge-internal` that serves on port `8080` and forwards to the container's port **by its name**, not by its number.\n\n2. Create a `NodePort` Service named `edge-public` that serves on port `80`, forwards to the same named container port, and is exposed on node port `30880`.\n\n3. Create a Service named `edge-vendor` that resolves to the external host name `vendor.example.com` without allocating a ClusterIP.\n\nAll three Services live in the `svc-edge` namespace and must select the `edge-web` Pods where that applies.",
+      "concepts": [
+        "services",
+        "networking",
+        "kubectl"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "edge-internal forwards to the named container port",
+          "verificationScriptFile": "q11_s1_validate_clusterip.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "edge-public is a NodePort on 30880",
+          "verificationScriptFile": "q11_s2_validate_nodeport.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "edge-vendor is an ExternalName Service",
+          "verificationScriptFile": "q11_s3_validate_externalname.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "kustom-prod",
+      "machineHostname": "ckad9999",
+      "question": "Build a Kustomize configuration from scratch under `/tmp/exam/q12` on this machine.\n\n1. In `/tmp/exam/q12/base`, create a Deployment named `trade-app` with `1` replica, one container named `trade-app` running `nginx:1.25` and exposing container port `80`, and a `kustomization.yaml` that includes it.\n\n2. In `/tmp/exam/q12/overlays/production`, create an overlay that builds on that base and:\n\n   - places every resource in the `kustom-prod` namespace\n   - prefixes every resource name with `prod-`\n   - adds the label `env: production` to every resource\n   - sets the Deployment to `3` replicas\n   - changes the `nginx` image tag to `1.27.4`\n\n3. Apply the overlay to the cluster.\n\n4. Write the overlay's rendered output, without applying it a second time, to `/tmp/exam/q12/rendered.yaml`.\n\nWhen you are finished the `kustom-prod` namespace must contain a Deployment named `prod-trade-app` with `3` ready replicas.",
+      "concepts": [
+        "kustomize",
+        "configuration-management",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Deployment prod-trade-app runs 3 ready replicas in kustom-prod",
+          "verificationScriptFile": "q12_s1_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The namespace, prefix, label and image transformations were applied",
+          "verificationScriptFile": "q12_s2_validate_transforms.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The rendered output was written to /tmp/exam/q12/rendered.yaml",
+          "verificationScriptFile": "q12_s3_validate_render.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "namespace": "kustom-stage",
+      "machineHostname": "ckad9999",
+      "question": "A Kustomize base is on this machine at `/tmp/exam/q13/base`. It builds a Deployment named `api` with one container named `api`.\n\nCreate an overlay at `/tmp/exam/q13/overlays/staging` that builds on that base and, **without editing anything under `/tmp/exam/q13/base`**:\n\n- places every resource in the `kustom-stage` namespace\n- uses a **strategic merge patch**, in its own file, to set the container's `LOG_LEVEL` environment variable to `debug`\n- uses a **JSON 6902 patch**, in its own file, to set the Deployment's replica count to `3`\n- generates a Secret named `api-credentials` of type `Opaque` holding the key `API_TOKEN` with the value `stage-7f3c`\n\nApply the overlay to the cluster.\n\nWhen you are finished the `kustom-stage` namespace must contain a running Deployment `api` with `3` ready replicas whose container has `LOG_LEVEL=debug`, and the generated Secret.",
+      "concepts": [
+        "kustomize",
+        "configuration-management",
+        "patches"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The strategic merge patch set LOG_LEVEL on the running Deployment",
+          "verificationScriptFile": "q13_s1_validate_merge_patch.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The JSON 6902 patch set the replica count",
+          "verificationScriptFile": "q13_s2_validate_json_patch.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The generated Secret exists with the required key and value",
+          "verificationScriptFile": "q13_s3_validate_secret.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "namespace": "kustom-fix",
+      "machineHostname": "ckad9999",
+      "question": "Running `kubectl kustomize /tmp/exam/q14/overlays/staging` on this machine exits with an error and produces no output.\n\nThe base under `/tmp/exam/q14/base` is shared with other teams and must not be edited, and that includes the image tag it pins. Only the `staging` overlay is yours, and it must keep using the patch file it already contains, `replica-patch.yaml`.\n\nRepair the overlay so that it renders. Staging must also move off the older image the base pins and on to the approved `nginx:1.27.4`; express that in the overlay, not in the base.\n\nWrite the rendered output to `/tmp/exam/q14/rendered.yaml`.\n\nThe rendered Deployment must be named `reports`, must be in the `kustom-fix` namespace, must declare `4` replicas and must run `nginx:1.27.4`. Do not apply the overlay: the `kustom-fix` namespace must stay empty.",
+      "concepts": [
+        "troubleshooting",
+        "kustomize",
+        "configuration-management"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The overlay renders without error",
+          "verificationScriptFile": "q14_s1_validate_render.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The rendered Deployment has the required namespace, replicas and image",
+          "verificationScriptFile": "q14_s2_validate_content.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The base is unedited and the overlay was not applied",
+          "verificationScriptFile": "q14_s3_validate_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "namespace": "compliance",
+      "machineHostname": "ckad9999",
+      "question": "An audit requires two configuration objects in the `compliance` namespace that cannot be altered in place once created.\n\n1. Create a ConfigMap named `audit-config` holding exactly two keys: `MIN_TLS_VERSION` with the value `1.2`, and `AUDIT_MODE` with the value `enabled`.\n\n2. Create an `Opaque` Secret named `audit-keys` holding exactly one key, `SIGNING_KEY`, with the value `r7-audit-2026`.\n\nBoth objects must reject any subsequent update to their data: an attempt to change either one must fail against the API server rather than succeed.",
+      "concepts": [
+        "configuration",
+        "configmaps",
+        "secrets"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ConfigMap audit-config holds the required data and rejects updates",
+          "verificationScriptFile": "q15_s1_validate_configmap.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Secret audit-keys holds the required data and rejects updates",
+          "verificationScriptFile": "q15_s2_validate_secret.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "namespace": "config-rotate",
+      "machineHostname": "ckad9999",
+      "question": "The `config-rotate` namespace runs the Deployment `feature-api`, which reads its whole environment from the ConfigMap `feature-flags` using `envFrom`. That ConfigMap is immutable.\n\nThe release is being promoted. The flags have to become `RELEASE_CHANNEL=stable` and `MAX_BATCH_SIZE=200`, and the new configuration must be just as unalterable in place as the old one.\n\n1. Create a new immutable ConfigMap named `feature-flags-v2` in the `config-rotate` namespace holding `RELEASE_CHANNEL` with the value `stable` and `MAX_BATCH_SIZE` with the value `200`.\n\n2. Switch the Deployment over to it, so that every running `feature-api` Pod actually has `RELEASE_CHANNEL=stable` and `MAX_BATCH_SIZE=200` in its environment.\n\nLeave the original `feature-flags` ConfigMap in place and unchanged. Keep the Deployment at `2` replicas, and keep it reading its whole environment through `envFrom` with a `configMapRef`.",
+      "concepts": [
+        "configuration",
+        "configmaps",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "feature-flags-v2 is immutable with the new values, and the original is untouched",
+          "verificationScriptFile": "q16_s1_validate_configmap.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Running Pods read the new ConfigMap through envFrom",
+          "verificationScriptFile": "q16_s2_validate_pods.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "namespace": "sched-pin",
+      "machineHostname": "ckad9999",
+      "question": "The worker node `node02` is being reserved for latency-sensitive work.\n\n1. Mark `node02` so that Pods which do not explicitly accept the reservation are never scheduled onto it, using the key `workload` with the value `latency` and the effect `NoSchedule`.\n\n2. Label `node02` with `tier=realtime`.\n\n3. In the `sched-pin` namespace, create a Deployment named `quote-engine` with `2` replicas running `nginx:1.27.4` in a container named `engine`, which both accepts the reservation and is required by node affinity to run only on nodes labelled `tier=realtime`. Use `requiredDuringSchedulingIgnoredDuringExecution`, not a `nodeSelector`.\n\nWhen you are finished both replicas must be `Running`, and every one of them must be on `node02`.",
+      "concepts": [
+        "scheduling",
+        "taints-and-tolerations",
+        "node-affinity"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "node02 carries the reservation taint and the tier label",
+          "verificationScriptFile": "q17_s1_validate_node.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "quote-engine tolerates the taint and uses required node affinity",
+          "verificationScriptFile": "q17_s2_validate_spec.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Both replicas are Running on node02",
+          "verificationScriptFile": "q17_s3_validate_placement.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "namespace": "sched-priority",
+      "machineHostname": "ckad9999",
+      "question": "The `sched-priority` namespace runs the Deployment `bulk-import`, a batch job pinned to `node03` and sized so that it fills the node.\n\nAn urgent workload has to displace it.\n\n1. Create a PriorityClass named `batch-low` with the value `10000`, and one named `critical-high` with the value `100000`. Neither may be the cluster's global default.\n\n2. Assign `batch-low` to the existing `bulk-import` Deployment.\n\n3. In the same namespace, create a Deployment named `market-feed` with `2` replicas running `nginx:1.27.4` in a container named `feed`, pinned to `node03` with the node selector `ck-x.io/alias: node03`, using the `critical-high` priority class, and requesting `512Mi` of memory per replica.\n\n`market-feed` must end up `Running` on `node03`, displacing as much of `bulk-import` as it needs to. Do not delete or scale `bulk-import` yourself, and do not remove its node pin.",
+      "concepts": [
+        "scheduling",
+        "priority-and-preemption",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Both PriorityClasses exist with the required values",
+          "verificationScriptFile": "q18_s1_validate_priorityclasses.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "bulk-import carries the low priority class and was not scaled by hand",
+          "verificationScriptFile": "q18_s2_validate_bulk.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "market-feed is Running on node03 with the high priority class",
+          "verificationScriptFile": "q18_s3_validate_market_feed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    }
+  ]
+}

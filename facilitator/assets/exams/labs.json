@@ -1,0 +1,194 @@
+{
+  "labs": [
+    {
+      "id": "ckad-001",
+      "assetPath": "assets/exams/ckad/001",
+      "name": "CKAD Comprehensive Lab - 1",
+      "category": "CKAD",
+      "description": "Hands-on exercises covering core Kubernetes concepts, pod configuration, deployments, and services with practical tasks for application deployment in a cluster.",
+      "warmUpTimeInSeconds": 260,
+      "difficulty": "Medium",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "ckad-002",
+      "assetPath": "assets/exams/ckad/002",
+      "name": "CKAD Comprehensive Lab - 2",
+      "category": "CKAD",
+      "description": "Series of practical tasks on multi-container pods, pod design patterns, configuration, services, and networking in Kubernetes environments.",
+      "warmUpTimeInSeconds": 260,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cks-001",
+      "assetPath": "assets/exams/cks/001",
+      "name": "CKS Practice Lab - Kubernetes Security Essentials",
+      "category": "CKS",
+      "description": "Practice essential Kubernetes security concepts including network policies, RBAC, supply chain security, and runtime protection",
+      "warmUpTimeInSeconds": 260,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-002",
+      "assetPath": "assets/exams/cka/002",
+      "name": "CKA Practice Lab - Advanced Administration",
+      "category": "CKA",
+      "description": "Comprehensive lab covering advanced Kubernetes administration topics including storage, networking, security, and troubleshooting with focus on real-world scenarios, updated with the latest CKA exam curriculum changes.",
+      "warmUpTimeInSeconds": 360,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-003",
+      "assetPath": "assets/exams/cka/003",
+      "name": "CKA Practice Lab - Exam Simulation",
+      "category": "CKA",
+      "description": "Full-length CKA simulation weighted to the official curriculum domains: troubleshooting, cluster architecture, services and networking, workloads and scheduling, and storage.",
+      "warmUpTimeInSeconds": 360,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-004",
+      "assetPath": "assets/exams/cka/004",
+      "name": "CKA Practice Lab - Gateway API & Cluster Operations",
+      "category": "CKA",
+      "description": "Full-length simulation built around the Kubernetes Gateway API: GatewayClasses, listeners, allowed routes, traffic splitting, TLS termination, cross-namespace backends and Gateway troubleshooting, alongside storage, RBAC, scheduling and autoscaling tasks.",
+      "warmUpTimeInSeconds": 420,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-005",
+      "assetPath": "assets/exams/cka/005",
+      "name": "CKA Practice Lab - Platform Services & Troubleshooting",
+      "category": "CKA",
+      "description": "Full-length simulation weighted to the areas that decide the exam: Gateway API, RBAC, Helm, Kustomize, NetworkPolicies, autoscaling, dynamic storage and kubectl data extraction, with seven questions that start from an already broken cluster.",
+      "warmUpTimeInSeconds": 480,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-006",
+      "assetPath": "assets/exams/cka/006",
+      "name": "CKA Practice Lab - Control Plane & Cluster Repair",
+      "category": "CKA",
+      "description": "Full-length simulation on a kubeadm-bootstrapped cluster with SSH access to the nodes: broken static pods, kubelet configuration, certificates and etcd, alongside cluster DNS outages, NetworkPolicy egress, Kustomize overlays and immutable configuration.",
+      "warmUpTimeInSeconds": 1080,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-007",
+      "assetPath": "assets/exams/cka/007",
+      "name": "CKA Practice Lab - RBAC Deep Dive",
+      "category": "CKA",
+      "description": "A focused one-hour drill on Kubernetes authorization: resourceNames, User and Group subjects, aggregated ClusterRoles, subresource and non-resource URL grants, ServiceAccount tokens and automounting, plus three questions that start from an account that is denied, mis-scoped or dangerously over-privileged.",
+      "warmUpTimeInSeconds": 300,
+      "difficulty": "Medium",
+      "examDurationInMinutes": 60
+    },
+    {
+      "id": "cka-001",
+      "assetPath": "assets/exams/cka/001",
+      "name": "CKA Practice Lab - Core Concepts",
+      "category": "CKA",
+      "description": "Practice essential Kubernetes administrator tasks covering cluster management, networking, storage, and security",
+      "warmUpTimeInSeconds": 260,
+      "difficulty": "Easy",
+      "examDurationInMinutes": 60
+    },
+    {
+      "id": "docker-001",
+      "assetPath": "assets/exams/other/001",
+      "name": "Docker Speed Run - Core Concepts",
+      "category": "Other",
+      "description": "Fast-paced practice lab covering Docker fundamentals including images, containers, volumes, networking, OCI, logging, and security best practices.",
+      "warmUpTimeInSeconds": 120,
+      "difficulty": "Medium",
+      "examDurationInMinutes": 90
+    },
+    {
+      "id": "helm-001",
+      "assetPath": "assets/exams/other/002",
+      "name": "Helm Fundamentals Lab",
+      "category": "Other",
+      "description": "Comprehensive lab covering Helm basics including chart installation, repositories, customization, packaging, debugging, and advanced Helm operations for Kubernetes applications.",
+      "warmUpTimeInSeconds": 260,
+      "difficulty": "Medium",
+      "examDurationInMinutes": 90
+    },
+    {
+      "id": "cka-008",
+      "assetPath": "assets/exams/cka/008",
+      "name": "CKA Practice Lab - NetworkPolicy Deep Dive",
+      "category": "CKA",
+      "description": "Twelve NetworkPolicy tasks, from a default-deny namespace to multi-policy troubleshooting and design",
+      "warmUpTimeInSeconds": 300,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 90
+    },
+    {
+      "id": "cka-009",
+      "assetPath": "assets/exams/cka/009",
+      "name": "CKA Practice Lab - Kustomize & Scheduling Deep Dive",
+      "category": "CKA",
+      "description": "Twelve tasks on Kustomize overlays and pod placement, from a first overlay and a single node-affinity rule to broken overlays, unschedulable workloads and an overlay that injects scheduling policy",
+      "warmUpTimeInSeconds": 180,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 90
+    },
+    {
+      "id": "cka-010",
+      "assetPath": "assets/exams/cka/010",
+      "name": "CKA Practice Lab - Cluster Lifecycle & Node Operations",
+      "category": "CKA",
+      "description": "Full-length simulation on a kubeadm-bootstrapped cluster: upgrade a cluster with kubeadm, rejoin a reset worker, back up and restore etcd, renew control plane certificates and repair a NotReady node, alongside static Pods, a broken kubeconfig, CRDs, DaemonSets, StatefulSets, CronJobs, CoreDNS and storage tasks.",
+      "warmUpTimeInSeconds": 600,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-011",
+      "assetPath": "assets/exams/cka/011",
+      "name": "CKA Practice Lab - Cluster Observability & Network Scoping",
+      "category": "CKA",
+      "description": "Full-length simulation on a kubeadm-bootstrapped cluster with SSH access to the nodes: bring up the Metrics API so kubectl top works, scope NetworkPolicy egress per destination and per port, and extend cluster DNS with a second domain, alongside kubeconfig contexts, Helm upgrades, StatefulSet claim retention, volume binding, crictl, kubeadm certificates, Kustomize autoscaling and kube-proxy.",
+      "warmUpTimeInSeconds": 300,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-012",
+      "assetPath": "assets/exams/cka/012",
+      "name": "CKA Practice Lab - Selector Semantics & Pod Composition",
+      "category": "CKA",
+      "description": "Full-length simulation on a kubeadm-bootstrapped cluster with SSH access to the nodes, built around the mistakes that cost marks rather than the topics that are easy to teach: static Pods in the path the kubelet really reads, namespaceSelector and podSelector in one from entry, CronJob fields at the spec level they belong to, Services with no endpoints, init containers against native sidecars, and Pods that stay Pending.",
+      "warmUpTimeInSeconds": 240,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-013",
+      "assetPath": "assets/exams/cka/013",
+      "name": "CKA Practice Lab - Control Plane Repair & Cluster Operations",
+      "category": "CKA",
+      "description": "Full-length, killer.sh-difficulty simulation on a kubeadm-bootstrapped cluster with SSH access to the nodes and a second cluster to repair: a downed API server and controller manager, a two-layer kubelet outage, an etcd backup proven by an offline restore, a Helm rollback, a Pod placed with the scheduler stopped, kubelet configuration through kubeadm, disruption budgets and drain, ServiceCIDRs, selectorless Services with hand-written EndpointSlices, PVC expansion, local volumes, ephemeral debug containers and a namespace stuck Terminating.",
+      "warmUpTimeInSeconds": 240,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    },
+    {
+      "id": "cka-014",
+      "assetPath": "assets/exams/cka/014",
+      "name": "CKA Practice Lab - Final Exam Rehearsal",
+      "category": "CKA",
+      "description": "Exam-format rehearsal: 16 tasks in 2 hours on a kubeadm-bootstrapped cluster with SSH access to the nodes and a second cluster to repair, built from the topics the current CKA keeps asking about: Gateway API migrated from an Ingress with TLS, a Helm chart whose CRD is already installed, HPA scale-down behaviour, PriorityClasses, native sidecars, a CNI install, node preparation with dpkg, systemd and sysctl, an API server cut off from etcd, a Released PersistentVolume to reuse, the least permissive NetworkPolicy, a dead kubelet, Pod Security admission and resource requests split across replicas. 66% to pass.",
+      "warmUpTimeInSeconds": 240,
+      "difficulty": "Hard",
+      "examDurationInMinutes": 120
+    }
+  ]
+}

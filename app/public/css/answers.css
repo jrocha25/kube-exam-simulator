@@ -1,0 +1,107 @@
+/* Answers Page Styles */
+
+.answers-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: calc(100vh - 160px);
+}
+
+.answers-content {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.answers-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.answers-header h2 {
+    margin: 0;
+    color: #333;
+    font-size: 1.8rem;
+}
+
+.exam-info-box {
+    background-color: #f0f8ff;
+    border-left: 4px solid #3498db;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.exam-info-box p {
+    margin: 0;
+    color: #333;
+    font-size: 14px;
+}
+
+.markdown-content {
+    background-color: #f9f9f9;
+    border-radius: 6px;
+    padding: 20px;
+    line-height: 1.6;
+    margin-bottom: 30px;
+}
+
+/* Enhanced code block styling for better readability */
+.markdown-content pre {
+    padding: 16px;
+    background-color: #f0f0f0;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 20px 0;
+}
+
+.markdown-content pre code {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    display: block;
+    line-height: 1.5;
+}
+
+/* Make tables more readable */
+.markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    overflow-x: auto;
+    display: block;
+}
+
+.markdown-content thead {
+    background-color: #e9ecef;
+}
+
+.markdown-content th,
+.markdown-content td {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.markdown-content tr:nth-child(even) {
+    background-color: #f7f7f7;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .answers-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .answers-actions {
+        margin-top: 15px;
+    }
+} 

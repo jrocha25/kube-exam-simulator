@@ -1,0 +1,386 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "rbac-report",
+      "machineHostname": "ckad9999",
+      "question": "Configure a reporting account that may read two named ConfigMaps and nothing else in the `rbac-report` namespace.\n\n1. Create a ServiceAccount named `report-reader` in the `rbac-report` namespace.\n\n2. Create a Role named `config-reader` in that namespace that allows `get` on only the ConfigMaps named `app-settings` and `feature-flags`, and `get` and `list` on `pods`.\n\n3. Create a RoleBinding named `report-reader-binding` that grants `config-reader` to `report-reader`.\n\nThe account must be able to read the two named ConfigMaps, must not be able to read the ConfigMap `billing-secrets`, and must not be able to list the ConfigMaps of the namespace.",
+      "concepts": [
+        "rbac",
+        "roles",
+        "least-privilege"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ServiceAccount report-reader exists",
+          "verificationScriptFile": "q1_s1_validate_sa.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Role config-reader is restricted to the two named ConfigMaps",
+          "verificationScriptFile": "q1_s2_validate_role.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "RoleBinding report-reader-binding grants the Role to the account",
+          "verificationScriptFile": "q1_s3_validate_binding.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The account reads the named ConfigMaps and cannot list the rest",
+          "verificationScriptFile": "q1_s4_validate_permissions.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "rbac-audit",
+      "machineHostname": "ckad9999",
+      "question": "The platform auditors authenticate as members of the group `platform-auditors`, and the lead auditor also authenticates as the user `dana`. Neither is a ServiceAccount.\n\n1. Create a ClusterRole named `infra-auditor` that allows `get`, `list` and `watch` on `nodes`, `persistentvolumes`, `namespaces` and `storageclasses`.\n\n2. Create a ClusterRoleBinding named `infra-auditors` that grants `infra-auditor` to the group `platform-auditors` and to the user `dana`.\n\nThe grant must be read only: no auditor may create, update, patch or delete any of those resources, and none of them may read Secrets.",
+      "concepts": [
+        "rbac",
+        "cluster-roles",
+        "groups"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ClusterRole infra-auditor allows get, list and watch on the inventory resources",
+          "verificationScriptFile": "q2_s1_validate_clusterrole.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "ClusterRoleBinding infra-auditors names both the Group and the User subject",
+          "verificationScriptFile": "q2_s2_validate_binding_subjects.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The grant reaches the group and the user, and nobody else",
+          "verificationScriptFile": "q2_s3_validate_permissions.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "4",
+          "description": "The grant is read only",
+          "verificationScriptFile": "q2_s4_validate_readonly.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "rbac-monitor",
+      "machineHostname": "ckad9999",
+      "question": "The monitoring stack's permissions are assembled from independently owned pieces, so the role the dashboard binds to must pick up new pieces without ever being edited itself.\n\n1. Create a ClusterRole named `monitoring-view` that defines no rules of its own and instead aggregates every ClusterRole labelled `rbac.ck-x.io/aggregate-to-monitoring: \"true\"`.\n\n2. Create a ClusterRole named `monitoring-pods`, carrying that label, that allows `get`, `list` and `watch` on `pods` and `get` on `pods/log`.\n\n3. Create a ClusterRole named `monitoring-nodes`, carrying that label, that allows `get`, `list` and `watch` on `nodes` and `get` on `nodes/metrics`.\n\n4. Create a ServiceAccount named `dashboard` in the `rbac-monitor` namespace, and grant it `monitoring-view` across the whole cluster using a ClusterRoleBinding named `dashboard-monitoring`.\n\nWhen you are finished `dashboard` must be able to list Pods and read Pod logs in every namespace and to list nodes, and must not be able to read Secrets or delete Pods anywhere.",
+      "concepts": [
+        "rbac",
+        "cluster-roles",
+        "aggregation"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ClusterRole monitoring-view aggregates on the required label",
+          "verificationScriptFile": "q3_s1_validate_aggregation_rule.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Both contributor ClusterRoles carry the label and the required rules",
+          "verificationScriptFile": "q3_s2_validate_contributors.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The aggregated ClusterRole was populated from both contributors",
+          "verificationScriptFile": "q3_s3_validate_aggregated_rules.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The dashboard account holds the aggregated permissions cluster wide",
+          "verificationScriptFile": "q3_s4_validate_permissions.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "rbac-deploy",
+      "machineHostname": "ckad9999",
+      "question": "The release automation in the `rbac-deploy` namespace may change how many replicas a Deployment runs, but may not change the Deployment itself. The namespace already contains a Deployment named `storefront`.\n\n1. Create a ServiceAccount named `release-bot` in the `rbac-deploy` namespace.\n\n2. Create a Role named `scaler` in that namespace that allows `get` and `list` on `deployments`, and `get`, `patch` and `update` on the `scale` subresource of `deployments`.\n\n3. Create a RoleBinding named `release-bot-scaler` that grants `scaler` to `release-bot`.\n\n`release-bot` must be able to scale `storefront`, and must not be able to update, patch, create or delete the Deployment object itself.",
+      "concepts": [
+        "rbac",
+        "subresources",
+        "roles"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ServiceAccount release-bot is bound to Role scaler",
+          "verificationScriptFile": "q4_s1_validate_sa_binding.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Role scaler targets the scale subresource and leaves Deployments read only",
+          "verificationScriptFile": "q4_s2_validate_role_subresource.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The account can read Deployments and scale them",
+          "verificationScriptFile": "q4_s3_validate_scale_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "4",
+          "description": "The account cannot modify the Deployment object",
+          "verificationScriptFile": "q4_s4_validate_deployment_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "rbac-token",
+      "machineHostname": "ckad9999",
+      "question": "A batch account must not hand its token to every Pod that uses it, but one diagnostic Pod does need it.\n\n1. Create a ServiceAccount named `job-runner` in the `rbac-token` namespace that does not automount its token into Pods.\n\n2. Create a Pod named `probe` in that namespace, running the image `busybox:1.36` with the command `sleep 3600`, that runs as `job-runner` and mounts the account's token anyway.\n\n3. Request a token for `job-runner` from the API server and save it, and nothing else, to `/tmp/exam/q5/token.jwt` on this machine.\n\nThe Pod must reach the `Running` state, and the saved token must authenticate as `system:serviceaccount:rbac-token:job-runner`.",
+      "concepts": [
+        "rbac",
+        "service-accounts",
+        "tokens"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ServiceAccount job-runner does not automount its token",
+          "verificationScriptFile": "q5_s1_validate_sa_automount.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Pod probe runs as job-runner and mounts the token anyway",
+          "verificationScriptFile": "q5_s2_validate_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The saved token authenticates as the job-runner account",
+          "verificationScriptFile": "q5_s3_validate_token.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "rbac-review",
+      "machineHostname": "ckad9999",
+      "question": "The `rbac-review` namespace is being handed over, and its current authorization grants more than the handover allows.\n\nRework the authorization in this namespace so that, when you are finished:\n\n- the ServiceAccount `legacy-svc` may `get`, `list` and `update` ConfigMaps, and may no longer `create` or `delete` them\n\n- the group `legacy-operators` may `get`, `list` and `watch` Pods, and has no access to ConfigMaps at all\n\n- the user `hallie` has no access to anything in the namespace\n\nLeave the RoleBindings `ops-readonly` and `deploy-managers`, and the roles they reference, exactly as they are.",
+      "concepts": [
+        "rbac",
+        "least-privilege",
+        "role-bindings"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "legacy-svc reads and updates ConfigMaps but can no longer create or delete them",
+          "verificationScriptFile": "q6_s1_validate_legacy_svc.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The group legacy-operators reads Pods and has no ConfigMap access",
+          "verificationScriptFile": "q6_s2_validate_legacy_group.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The user hallie has no access in the namespace",
+          "verificationScriptFile": "q6_s3_validate_hallie.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "4",
+          "description": "The ops-readonly and deploy-managers bindings are untouched",
+          "verificationScriptFile": "q6_s4_validate_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "rbac-probe",
+      "machineHostname": "ckad9999",
+      "question": "An external monitoring agent scrapes the API server's own endpoints rather than any Kubernetes resource.\n\n1. Create a ServiceAccount named `probe-agent` in the `rbac-probe` namespace.\n\n2. Create a ClusterRole named `endpoint-prober` that allows `get` on the non-resource URLs `/healthz`, `/healthz/*`, `/livez`, `/version` and `/metrics`.\n\n3. Create a ClusterRoleBinding named `probe-agent-endpoints` that grants `endpoint-prober` to `probe-agent`.\n\n`probe-agent` must be able to read those endpoints, and must not be able to read any API resource \u2014 no Pods, no nodes, no namespaces and no Secrets.",
+      "concepts": [
+        "rbac",
+        "cluster-roles",
+        "non-resource-urls"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ClusterRole endpoint-prober grants get on the five endpoints",
+          "verificationScriptFile": "q7_s1_validate_clusterrole.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "2",
+          "description": "ClusterRoleBinding probe-agent-endpoints grants it to the account",
+          "verificationScriptFile": "q7_s2_validate_binding.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The account reads the endpoints and no API resource",
+          "verificationScriptFile": "q7_s3_validate_permissions.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "rbac-identity",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `inventory-sync` in the `rbac-identity` namespace reconciles that namespace's ConfigMaps. Both of its replicas reach the `Running` state, but every pass fails: `kubectl logs` shows the API server refusing the request with `403 Forbidden`.\n\nA ServiceAccount, a Role and a RoleBinding for this application already exist in the namespace.\n\nThe `default` ServiceAccount of `rbac-identity` is shared with other work and must not be granted anything.\n\nInvestigate and restore the application's access.\n\nWhen you are finished the application must be able to `get`, `list`, `watch` and `update` the ConfigMaps of `rbac-identity`, and must still be refused Secrets there and ConfigMaps in any other namespace. The Deployment must still declare `2` replicas, and the ServiceAccount, the Role and the RoleBinding must keep the names they already have.",
+      "concepts": [
+        "troubleshooting",
+        "rbac",
+        "service-accounts"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Every Pod of the Deployment runs as the application's own account",
+          "verificationScriptFile": "q8_s1_validate_pod_identity.sh",
+          "expectedOutput": "0",
+          "weightage": 5
+        },
+        {
+          "id": "2",
+          "description": "That account can reconcile ConfigMaps and nothing beyond them",
+          "verificationScriptFile": "q8_s2_validate_permissions.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "3",
+          "description": "The original objects are intact and the default account was not widened",
+          "verificationScriptFile": "q8_s3_validate_constraints.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "rbac-jobs",
+      "machineHostname": "ckad9999",
+      "question": "The scheduling automation that runs as the ServiceAccount `scheduler-bot` in the `rbac-jobs` namespace is refused every time it lists or creates a CronJob, and refused again every time it reads an Ingress. It lists Pods in that namespace without trouble.\n\nA Role and a RoleBinding for the account already exist in `rbac-jobs`. The account must never gain access to any other namespace.\n\nInvestigate and restore the account's access.\n\nWhen you are finished `scheduler-bot` must be able to `get`, `list` and `create` CronJobs and to `get` and `list` Ingresses in `rbac-jobs`, and must still be able to `get` and `list` Pods there. It must still be refused all of that in the `rbac-jobs-staging` namespace, must not gain `delete` on CronJobs, and must not gain any access to Secrets. Keep the ServiceAccount, the Role and the RoleBinding under the names they already have.",
+      "concepts": [
+        "troubleshooting",
+        "rbac",
+        "api-groups"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The account can read and create CronJobs in rbac-jobs",
+          "verificationScriptFile": "q9_s1_validate_cronjobs.sh",
+          "expectedOutput": "0",
+          "weightage": 5
+        },
+        {
+          "id": "2",
+          "description": "The account can read Ingresses and Pods in rbac-jobs",
+          "verificationScriptFile": "q9_s2_validate_ingresses.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "3",
+          "description": "The original object names are kept and the grant stops at the namespace",
+          "verificationScriptFile": "q9_s3_validate_constraints.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "rbac-excess",
+      "machineHostname": "ckad9999",
+      "question": "A security review has flagged the ServiceAccount `backup-agent` in the `rbac-excess` namespace: it can read and modify every object in the cluster, including the Secrets of `kube-system`.\n\nThe account belongs to a backup job that only ever needs to inventory what it is about to back up.\n\nReduce the account's access to what that job needs.\n\nWhen you are finished `backup-agent` must be able to `get` and `list` Pods and PersistentVolumeClaims in the `rbac-excess` namespace, and to `get` and `list` PersistentVolumes across the cluster. It must not be able to create, update or delete any of them, must not be able to read Pods in any other namespace, and must hold no other permission anywhere. The ServiceAccount `backup-agent` itself must still exist.",
+      "concepts": [
+        "troubleshooting",
+        "rbac",
+        "least-privilege"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The account no longer holds administrative access",
+          "verificationScriptFile": "q10_s1_validate_not_admin.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "2",
+          "description": "The account reads Pods and claims in its own namespace only",
+          "verificationScriptFile": "q10_s2_validate_namespace_scope.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "3",
+          "description": "The account can read PersistentVolumes cluster wide but not change them",
+          "verificationScriptFile": "q10_s3_validate_pv_read.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "ServiceAccount backup-agent still exists",
+          "verificationScriptFile": "q10_s4_validate_sa.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    }
+  ]
+}

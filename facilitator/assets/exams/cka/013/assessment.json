@@ -1,0 +1,563 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "cp-relay",
+      "machineHostname": "ckad9999",
+      "question": "This question is set on the **auxiliary cluster**. Reach its only node with `ssh aux`, where you are `root` and a plain `kubectl` is already configured for that cluster.\n\nOn that node `kubectl get nodes` fails with `connection refused`. Earlier, before the API server went away, a Deployment named `relay-hub` was submitted to the namespace `cp-relay`, and it never received a single Pod.\n\nThe control plane of this cluster is kubeadm-managed and runs as static Pods. Nothing about the Deployment itself is wrong.\n\nRestore the cluster. When you are finished the API server must answer, every control-plane component must be running and healthy, and `relay-hub` must have `2` ready replicas. Do not delete or recreate the Deployment.",
+      "concepts": ["troubleshooting", "control-plane", "static-pods", "kubeadm"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The auxiliary API server answers and its mirror Pod is Ready",
+          "verificationScriptFile": "q1_s1_validate_apiserver.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The controller manager is Ready and holds a freshly renewed leader lease",
+          "verificationScriptFile": "q1_s2_validate_controller_manager.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The original relay-hub Deployment has 2 ready replicas",
+          "verificationScriptFile": "q1_s3_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "etcd-cutover",
+      "machineHostname": "ckad9999",
+      "question": "The platform team wants a verified etcd backup of the **lab cluster** before a cutover. Work on the control-plane node with `ssh controlplane`, where `etcdctl` and `etcdutl` are installed.\n\n1. Create a ConfigMap named `cutover-marker` in the namespace `etcd-cutover` with the key `wave` set to `harbour-7`. The backup must contain it, so create it first.\n2. Take a snapshot of the running etcd and save it as `/opt/etcd-backup/cutover.db` on `controlplane`. Read the endpoint and the certificate paths from the etcd static Pod manifest.\n3. Prove the snapshot is usable by restoring it offline into the data directory `/opt/etcd-backup/cutover-verify` on the same node.\n\nThe running etcd must not be touched: do not restart it and do not change its manifest or its data directory.",
+      "concepts": ["etcd", "backup", "cluster-architecture"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "cutover.db is a valid snapshot taken after cutover-marker was created",
+          "verificationScriptFile": "q2_s1_validate_snapshot.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The snapshot was restored into /opt/etcd-backup/cutover-verify",
+          "verificationScriptFile": "q2_s2_validate_restore.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The running etcd was not restarted and still serves from /var/lib/etcd",
+          "verificationScriptFile": "q2_s3_validate_etcd_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "helm-tide",
+      "machineHostname": "ckad9999",
+      "question": "The Helm release `tidewatch` in the namespace `helm-tide` was installed from the local chart `/tmp/exam/q3/tidewatch`. Its most recent upgrade left the application unable to start.\n\n1. Roll the release back to the last revision that worked.\n2. Then upgrade the release once more from the same chart. Every value that was supplied by the user in the working revision must stay in effect. In addition, apply the values file `/tmp/exam/q3/values-season.yaml` and set the value `tier` to `priority`.\n\nUse Helm for both steps; do not edit the release's Kubernetes objects directly.\n\nWhen you are finished `helm history tidewatch -n helm-tide` must show the rollback followed by your upgrade as the deployed revision, and the Deployment must have `2` ready replicas.",
+      "concepts": ["helm", "rollback", "cluster-architecture"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The release was rolled back to revision 1 after the broken upgrade",
+          "verificationScriptFile": "q3_s1_validate_rollback.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The deployed revision is an upgrade carrying the original, the file's and the new values",
+          "verificationScriptFile": "q3_s2_validate_values.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The release's Deployment has 2 ready replicas on the working image",
+          "verificationScriptFile": "q3_s3_validate_workload.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "sched-berth",
+      "machineHostname": "ckad9999",
+      "question": "Prove that you can run a Pod without the scheduler, on the **lab cluster**. Work on the control-plane node with `ssh controlplane` where you need to.\n\n1. Stop the `kube-scheduler` of the lab cluster.\n2. Create a Pod named `berth-manual` in the namespace `sched-berth`, with one container named `berth` running `nginx:1.27.4`. It must end up `Running` on the node `controlplane`. Do not give it any tolerations, `nodeSelector` or affinity.\n3. Start the `kube-scheduler` again.\n4. Create a Pod named `berth-auto` in the same namespace, with one container named `berth` running `nginx:1.27.4` and the `nodeSelector` `ck-x.io/alias: node01`. It must be placed by the scheduler.\n\nOther questions in this lab depend on the scheduler: it must be running and healthy when you finish.",
+      "concepts": ["scheduling", "static-pods", "control-plane", "cluster-architecture"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "berth-manual runs on controlplane with no tolerations or placement rules",
+          "verificationScriptFile": "q4_s1_validate_manual_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The kube-scheduler static Pod was stopped and started again, and is Ready",
+          "verificationScriptFile": "q4_s2_validate_scheduler_restarted.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "berth-auto runs on node01 and was bound by the scheduler",
+          "verificationScriptFile": "q4_s3_validate_scheduled_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "kubeadm-logs",
+      "machineHostname": "ckad9999",
+      "question": "On the **lab cluster** every kubelet must rotate container logs at `25Mi` and keep at most `4` log files per container.\n\nThe cluster was built with kubeadm. Make the change in the kubelet configuration kubeadm keeps in the cluster, so that every node that joins from now on gets it, and do not change any other setting in it.\n\nThen roll the change out to the node `controlplane` (`ssh controlplane`) using kubeadm, and make the running kubelet pick it up. The other nodes are not part of this task.\n\nWhen you are finished the kubelet on `controlplane` must report both values in its live configuration, and the node must be `Ready`.",
+      "concepts": ["kubelet", "kubeadm", "cluster-architecture"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The kubeadm-managed kubelet configuration carries both values",
+          "verificationScriptFile": "q5_s1_validate_configmap.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "controlplane's running kubelet reports both values",
+          "verificationScriptFile": "q5_s2_validate_live_config.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "No other kubelet setting changed and controlplane is Ready",
+          "verificationScriptFile": "q5_s3_validate_rest_unchanged.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "wl-harbor",
+      "machineHostname": "ckad9999",
+      "question": "The namespace `wl-harbor` runs the Deployment `manifest-api`. Put the namespace under these guardrails:\n\n1. Pod Security admission must **enforce** the `restricted` level, pinned to version `v1.34`.\n2. A ResourceQuota named `harbor-quota` limiting the namespace to `requests.cpu: 1`, `requests.memory: 1Gi`, `limits.cpu: 2`, `limits.memory: 2Gi` and `pods: 6`.\n3. A LimitRange named `harbor-defaults` that gives every container that does not set them a default request of `cpu: 50m` / `memory: 64Mi` and a default limit of `cpu: 200m` / `memory: 128Mi`.\n\nThen bring `manifest-api` under the new policy: its Pods must be re-admitted under the guardrails and `2` replicas must be ready. Keep the image and command. Do **not** write any `resources` into the Deployment; the LimitRange is what must supply them.",
+      "concepts": ["pod-security", "resource-quota", "limit-range", "workloads"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The namespace enforces the restricted Pod Security level pinned to v1.34",
+          "verificationScriptFile": "q6_s1_validate_psa_labels.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "harbor-quota and harbor-defaults are configured as asked",
+          "verificationScriptFile": "q6_s2_validate_quota_limits.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "manifest-api was re-admitted with LimitRange defaults and has 2 ready replicas",
+          "verificationScriptFile": "q6_s3_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "A Pod running as root is rejected in the namespace",
+          "verificationScriptFile": "q6_s4_validate_enforced.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "wl-tide-prod",
+      "machineHostname": "ckad9999",
+      "question": "A Kustomize application lives in `/tmp/exam/q7/tidereader`, with a `base` and a `prod` overlay in `overlays/prod`. Production needs autoscaling; the base must not get it.\n\nAdd a HorizontalPodAutoscaler named `tide-reader` to the `prod` overlay only, targeting the overlay's Deployment, with:\n\n- `2` to `8` replicas, scaling on an average CPU utilization of `65` percent\n- scale down: a stabilization window of `300` seconds and two policies, at most `1` Pod per `60` seconds and at most `20` percent per `60` seconds, where the policy allowing the **smaller** change wins\n- scale up: no stabilization window and at most `50` percent per `30` seconds\n\nApply the overlay with `kubectl apply -k`. Do not modify anything in `base`.",
+      "concepts": ["kustomize", "autoscaling", "hpa", "workloads"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The prod overlay renders the HPA and the base is unchanged",
+          "verificationScriptFile": "q7_s1_validate_overlay.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "The live HPA has the exact scale-up and scale-down behavior",
+          "verificationScriptFile": "q7_s2_validate_behavior.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The HPA targets the overlay's Deployment with the right bounds and metric",
+          "verificationScriptFile": "q7_s3_validate_target.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "node-buoy",
+      "machineHostname": "ckad9999",
+      "question": "The worker node `node03` of the **lab cluster** reports `NotReady`, and the two Pods of the Deployment `buoy-agent` in the namespace `node-buoy`, which must run on that node, are no longer serving.\n\nYou can reach the node with `ssh node03`. Nothing about the Deployment is wrong.\n\nBring the node back. It must keep using its own existing credentials to talk to the API server; do not reset or re-join it, and do not give it any other identity.\n\nWhen you are finished `node03` must be `Ready`, its kubelet must be running and enabled, and `buoy-agent` must have `2` ready replicas running on `node03`.",
+      "concepts": ["troubleshooting", "kubelet", "nodes"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "node03 is Ready",
+          "verificationScriptFile": "q8_s1_validate_node_ready.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "node03's kubelet is active, enabled and still uses the node's own client certificate",
+          "verificationScriptFile": "q8_s2_validate_kubelet.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "buoy-agent has 2 ready replicas on node03",
+          "verificationScriptFile": "q8_s3_validate_workload.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "wl-quorum",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `quorum` in the namespace `wl-quorum` runs `3` replicas across `node01` and `node02`. `node02` has to go down for maintenance.\n\n1. Create a PodDisruptionBudget named `quorum-budget` in `wl-quorum` that selects the Pods carrying **both** labels `app=quorum` and `ring=primary`, allows at most `1` of them to be unavailable at a time, and lets Pods that are running but not ready be evicted at any time regardless of the budget.\n2. `quorum-budget` must be the **only** PodDisruptionBudget that covers the `quorum` Pods when you are finished.\n3. Drain `node02` and leave it cordoned.\n\nWhen you are finished `quorum` must again have `3` ready replicas, none of them on `node02`.",
+      "concepts": ["pod-disruption-budget", "drain", "nodes", "workloads"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "quorum-budget has the exact selector, maxUnavailable and unhealthy-eviction policy",
+          "verificationScriptFile": "q9_s1_validate_pdb.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "quorum-budget is the only budget covering the quorum Pods",
+          "verificationScriptFile": "q9_s2_validate_single_budget.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "node02 is cordoned and drained",
+          "verificationScriptFile": "q9_s3_validate_drained.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "quorum has 3 ready replicas, none on node02",
+          "verificationScriptFile": "q9_s4_validate_workload.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "net-tally",
+      "machineHostname": "ckad9999",
+      "question": "The Pods of the Deployment `tally-api` in the namespace `net-tally` carry the label `app=tally-api` and serve on TCP port `80`. Lock their traffic down with two NetworkPolicies in `net-tally`. They select only the `tally-api` Pods.\n\n1. `tally-egress` restricts the Pods' **outgoing** traffic to exactly two things:\n   - DNS lookups to the cluster DNS Pods (label `k8s-app=kube-dns` in `kube-system`), on port `53` over both UDP and TCP\n   - Pods labelled `role=ledger` in any namespace labelled `tier=data`, on the port those Pods name `pg-wire` and on no other port\n2. `tally-ingress` restricts the Pods' **incoming** traffic to Pods labelled `role=teller` in the namespace `net-tally-front`, on TCP port `80` only.\n\nThe ledger Pods are run by another team and do not all listen on the same port number. Do not modify any of the workloads or namespaces.",
+      "concepts": ["network-policy", "services-networking"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "tally-egress and tally-ingress exist, select tally-api and set the right policy types",
+          "verificationScriptFile": "q10_s1_validate_policies.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "tally-api reaches every ledger Pod on its pg-wire port and resolves names",
+          "verificationScriptFile": "q10_s2_validate_egress_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "tally-api cannot reach other ports, non-ledger Pods or ledgers outside tier=data namespaces",
+          "verificationScriptFile": "q10_s3_validate_egress_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "Only teller Pods from net-tally-front reach tally-api",
+          "verificationScriptFile": "q10_s4_validate_ingress.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "net-vault",
+      "machineHostname": "ckad9999",
+      "question": "Two backend Pods, `vault-a` and `vault-b`, run in the namespace `net-vault-backend`. Each serves HTTP on port `8080` and metrics on port `9100`. Clients in the namespace `net-vault` must reach them through a Service whose endpoints are managed by hand.\n\n1. In `net-vault`, create a Service named `vault-proxy` with **no selector** and two ports: `api` on port `80` to target port `8080`, and `metrics` on port `9100` to target port `9100`.\n2. Create the EndpointSlice for it yourself, named `vault-proxy-1`, labelled `endpointslice.kubernetes.io/managed-by: staff.ck-x.io`. It must list **both** backend Pods by their current IPs, with ports matching the Service's port names. `vault-b` is being drained: keep it in the slice, but mark it as not ready.\n\nWhen you are finished requests to `vault-proxy` on port `80` must always be answered by `vault-a`, and port `9100` must answer too.",
+      "concepts": ["services", "endpointslices", "services-networking"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "vault-proxy has no selector and both named ports",
+          "verificationScriptFile": "q11_s1_validate_service.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "vault-proxy-1 is linked to the Service and lists both Pods with vault-b not ready",
+          "verificationScriptFile": "q11_s2_validate_endpointslice.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Every request to port 80 is answered by vault-a",
+          "verificationScriptFile": "q11_s3_validate_api_traffic.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "Port 9100 answers through the Service",
+          "verificationScriptFile": "q11_s4_validate_metrics.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "net-orbit",
+      "machineHostname": "ckad9999",
+      "question": "The **lab cluster** needs a second range of Service IP addresses for the `orbit` platform, in the namespace `net-orbit`.\n\n1. Add the range `10.250.0.0/24` to the cluster as a ServiceCIDR named `orbit-range`.\n2. Create a Service named `orbit-gw` in `net-orbit` with the ClusterIP `10.250.0.40`. It selects the Pods labelled `app=orbit` and exposes port `80` to target port `80`.\n3. The existing Service `orbit-legacy` must move into the new range as well. Keep its name, its selector and its ports exactly as they are.\n\nWhen you are finished both Services must be reachable from the Pod `orbit-probe` in `net-orbit`.",
+      "concepts": ["services", "service-cidr", "services-networking"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ServiceCIDR orbit-range covers 10.250.0.0/24 and is Ready",
+          "verificationScriptFile": "q12_s1_validate_servicecidr.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "orbit-gw has the ClusterIP 10.250.0.40",
+          "verificationScriptFile": "q12_s2_validate_gateway_ip.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "orbit-legacy is inside the new range with its selector and ports unchanged",
+          "verificationScriptFile": "q12_s3_validate_legacy_moved.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "Both Services answer from orbit-probe",
+          "verificationScriptFile": "q12_s4_validate_reachable.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "namespace": "stor-ledger",
+      "machineHostname": "ckad9999",
+      "question": "The PersistentVolumeClaim `ledger-data` in the namespace `stor-ledger` requests `256Mi` and is mounted by the running Pod `ledger-writer`. The ledger needs `1Gi`.\n\nGrow the existing claim in place to a request of `1Gi`. It must remain the same PersistentVolumeClaim, bound to the same volume, and the Pod and its data must stay as they are. Change only what the cluster requires to allow the resize; the claim's StorageClass must keep its provisioner, binding mode and reclaim policy.\n\nThe local-path provisioner behind this class cannot actually grow the directory, so the reported capacity of the claim is expected to stay at `256Mi`. What is graded is the claim's request.",
+      "concepts": ["storage", "persistent-volumes", "storage-class"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The StorageClass allows expansion and is otherwise unchanged",
+          "verificationScriptFile": "q13_s1_validate_storageclass.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "The original ledger-data claim requests 1Gi and is bound to its original volume",
+          "verificationScriptFile": "q13_s2_validate_claim.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "ledger-writer still runs and its data is intact",
+          "verificationScriptFile": "q13_s3_validate_data.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "namespace": "stor-vault",
+      "machineHostname": "ckad9999",
+      "question": "A fast disk on one worker of the **lab cluster** is mounted at `/srv/ck-x/tidevault`. The node that has it carries the label `storage.ck-x.io/vault=nvme`.\n\n1. Create a StorageClass named `vault-local` with no dynamic provisioner, which delays binding until a Pod uses the claim, and retains volumes when they are released.\n2. Create a PersistentVolume named `vault-pv-01` of the `local` volume type for that path, with a capacity of `1Gi`, access mode `ReadWriteOnce` and the class `vault-local`. Its node affinity must be expressed with the `storage.ck-x.io/vault` label, not with a node's hostname.\n3. Create a PersistentVolumeClaim named `vault-claim` in the namespace `stor-vault` requesting `1Gi` from `vault-local`.\n4. Create a Pod named `vault-reader` in `stor-vault` with one container named `reader` running `busybox:1.36` with the command `sleep 3600`, mounting the claim at `/vault`. The Pod must have no `nodeName`, `nodeSelector` or affinity of its own.\n\nWhen you are finished the file `token` already on that disk must be readable inside the Pod at `/vault/token`.",
+      "concepts": ["storage", "persistent-volumes", "local-volumes", "storage-class"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "vault-local has no provisioner, WaitForFirstConsumer and Retain",
+          "verificationScriptFile": "q14_s1_validate_storageclass.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "vault-pv-01 is a local volume pinned through the storage.ck-x.io/vault label",
+          "verificationScriptFile": "q14_s2_validate_pv.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "vault-claim is bound to vault-pv-01",
+          "verificationScriptFile": "q14_s3_validate_pvc.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "vault-reader landed on the disk's node by the volume alone and reads the token",
+          "verificationScriptFile": "q14_s4_validate_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "namespace": "ts-cargo",
+      "machineHostname": "ckad9999",
+      "question": "The latest rollout of the Deployment `cargo-api` in the namespace `ts-cargo` has not completed, and it never will on its own.\n\nThe application is `nginx` serving on its default port. It reads its credential from the environment variable `API_TOKEN`, which must come from the Secret `relay-secrets`. That Secret and the namespace's ResourceQuota belong to the platform team and must not be modified, replaced or deleted.\n\nThe Deployment must keep `2` replicas, keep the environment variable `API_TOKEN` and keep both a liveness and a readiness probe.\n\nWhen you are finished the rollout must be complete: `2` replicas, all of them updated to the latest template, ready and not restarting.",
+      "concepts": ["troubleshooting", "deployments", "resource-quota", "probes"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The rollout is complete with 2 updated, ready replicas",
+          "verificationScriptFile": "q15_s1_validate_rollout.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Both probes are still present, and the Pods are stable",
+          "verificationScriptFile": "q15_s2_validate_probes.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "API_TOKEN comes from the relay-secrets Secret",
+          "verificationScriptFile": "q15_s3_validate_env.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "The Secret and the ResourceQuota are untouched",
+          "verificationScriptFile": "q15_s4_validate_owned_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "namespace": "ts-decom",
+      "machineHostname": "ckad9999",
+      "question": "The namespace `ts-decom` was deleted a while ago and has been stuck in `Terminating` ever since.\n\nIt held resources of the custom type `tidegauges.ops.ck-x.io`. The controller that used to process those resources has been decommissioned and will not come back.\n\nThe CustomResourceDefinition `tidegauges.ops.ck-x.io` and every resource outside `ts-decom` belong to other teams and must be left exactly as they are.\n\nFinish removing the namespace. When you are finished `ts-decom` must no longer exist, and nothing that lived in it may be left behind in the cluster.",
+      "concepts": ["troubleshooting", "namespaces", "custom-resources", "finalizers"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ts-decom is gone and none of its resources were left behind",
+          "verificationScriptFile": "q16_s1_validate_namespace_gone.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The CustomResourceDefinition is untouched",
+          "verificationScriptFile": "q16_s2_validate_crd.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "Resources in other namespaces are untouched",
+          "verificationScriptFile": "q16_s3_validate_other_namespace.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "namespace": "ts-lighthouse",
+      "machineHostname": "ckad9999",
+      "question": "The Pod `beacon-core` in the namespace `ts-lighthouse` holds the only remaining copy of a credential, in the environment variable `LIGHT_TOKEN` of its container `core`. The Secret it was loaded from has been deleted, so if the container or the Pod restarts the value is lost for good.\n\nThe container's image has no shell and no other tools.\n\nRecover the value and write it, and nothing else, to `/tmp/exam/q17/token.txt` on this machine.\n\nDo it from inside the Pod's own process namespace using Kubernetes tooling. Do not restart, recreate or modify `beacon-core` or its container `core`, and do not read the value off the node.",
+      "concepts": ["troubleshooting", "kubectl-debug", "ephemeral-containers"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "token.txt holds the credential",
+          "verificationScriptFile": "q17_s1_validate_token.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "An ephemeral container targeting core was attached to beacon-core",
+          "verificationScriptFile": "q17_s2_validate_ephemeral.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "beacon-core was not restarted or recreated",
+          "verificationScriptFile": "q17_s3_validate_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    }
+  ]
+}

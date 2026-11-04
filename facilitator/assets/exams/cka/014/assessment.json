@@ -1,0 +1,497 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "helm-berth",
+      "machineHostname": "ckad9999",
+      "question": "Two versions of the Helm chart `berthwatch` are available as archives in `/tmp/exam/q1/charts/`.\n\nThe chart can also install the CustomResourceDefinition `berths.ops.harbor.io`. That CRD is already installed and is owned by the platform team: the release must not install, adopt or modify it.\n\n1. Render chart version `0.7.2` for a release named `berthwatch` with `2` replicas and without the CRD, and save the rendered manifests to `/tmp/exam/q1/berthwatch.yaml`.\n2. Install chart version `0.7.2` as the release `berthwatch` in the namespace `helm-berth` (create the namespace) with the same settings.\n\nDo not modify the chart archives. Inspect the chart's values to find the settings you need.",
+      "concepts": [
+        "helm",
+        "custom-resource-definitions",
+        "cluster-architecture"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The rendered file holds chart 0.7.2 with 2 replicas and no CRD",
+          "verificationScriptFile": "q1_s1_validate_template_file.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The release is deployed from 0.7.2 with replicaCount 2 and the CRD switched off",
+          "verificationScriptFile": "q1_s2_validate_release.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "berthwatch has 2 ready replicas and the CRD still belongs to the platform team",
+          "verificationScriptFile": "q1_s3_validate_workload.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "quay-edge",
+      "machineHostname": "ckad9999",
+      "question": "The Ingress `quay-web` in the namespace `quay-edge` publishes `quay.harbor.local` over HTTPS. Migrate it to the Gateway API. The Gateway API CRDs and the GatewayClass `harbor-gwc` are already installed.\n\n1. Create a Gateway named `quay-gw` in `quay-edge` that uses the GatewayClass `harbor-gwc` and has two listeners, both for the hostname `quay.harbor.local`. The listener `https` uses protocol HTTPS on port `443` and terminates TLS with the certificate the Ingress uses today. The listener `http` uses protocol HTTP on port `80`.\n2. Create an HTTPRoute named `quay-web`, attached only to the `https` listener, that routes exactly the requests the Ingress routes today to the same backends.\n3. Create an HTTPRoute named `quay-redirect`, attached only to the `http` listener, that redirects every request to the `https` scheme with status code `301`.\n4. Delete the Ingress `quay-web`. Keep its backend Services.",
+      "concepts": [
+        "gateway-api",
+        "ingress",
+        "tls",
+        "services-networking"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Gateway quay-gw has the https (TLS terminate, quay-tls) and http listeners",
+          "verificationScriptFile": "q2_s1_validate_gateway.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "HTTPRoute quay-web reproduces both Ingress paths on the https listener",
+          "verificationScriptFile": "q2_s2_validate_route.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "HTTPRoute quay-redirect sends a 301 to https from the http listener",
+          "verificationScriptFile": "q2_s3_validate_redirect.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The Ingress is deleted and its Services remain",
+          "verificationScriptFile": "q2_s4_validate_ingress_removed.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "kube-system",
+      "machineHostname": "ckad9999",
+      "question": "This question is set on the **auxiliary cluster**. Reach its only node with `ssh aux`, where you are `root` and a plain `kubectl` is already configured for that cluster.\n\nSince last night's maintenance `kubectl` on that cluster fails. During the maintenance the cluster's etcd member was reconfigured to serve its clients only on the node's own IP address instead of the loopback address. That etcd change is intentional and must stay.\n\nThe control plane is kubeadm-managed and runs as static Pods.\n\nRestore the cluster. When you are finished the API server must answer, all four control-plane Pods (`etcd`, `kube-apiserver`, `kube-controller-manager` and `kube-scheduler`) must be Running and Ready, and etcd must still serve clients only on the node's IP address.",
+      "concepts": [
+        "troubleshooting",
+        "control-plane",
+        "etcd",
+        "static-pods"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The auxiliary API server answers and reports etcd healthy",
+          "verificationScriptFile": "q3_s1_validate_apiserver.sh",
+          "expectedOutput": "0",
+          "weightage": 5
+        },
+        {
+          "id": "2",
+          "description": "The API server uses etcd's client port on the node address; etcd is left as reconfigured",
+          "verificationScriptFile": "q3_s2_validate_etcd_endpoint.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "All four control-plane Pods are Ready",
+          "verificationScriptFile": "q3_s3_validate_control_plane.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "hpa-crane",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `crane-telemetry` in the namespace `hpa-crane` has to scale on CPU.\n\nCreate a HorizontalPodAutoscaler (`autoscaling/v2`) named `crane-telemetry` in the same namespace that:\n\n- targets the Deployment `crane-telemetry`\n- keeps between `2` and `6` replicas\n- aims at an average CPU utilization of `65%`\n- when scaling down, uses a stabilization window of `45` seconds and removes at most `1` Pod every `60` seconds, with that as its only scale-down policy\n\nLeave the scale-up behaviour at its defaults.",
+      "concepts": [
+        "autoscaling",
+        "horizontal-pod-autoscaler",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The HPA targets crane-telemetry, 2 to 6 replicas, 65% CPU",
+          "verificationScriptFile": "q4_s1_validate_hpa_target.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Scale-down: 45s stabilization window, 1 Pod per 60s",
+          "verificationScriptFile": "q4_s2_validate_hpa_behavior.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "ledger",
+      "machineHostname": "ckad9999",
+      "question": "The database Deployment `ledger-db` in the namespace `ledger` and its PersistentVolumeClaim `ledger-data` were deleted by mistake. The data is still on the PersistentVolume `ledger-pv`, which has the `Retain` reclaim policy.\n\n1. Create a PersistentVolumeClaim named `ledger-data` in the namespace `ledger` that binds to `ledger-pv`, with access mode `ReadWriteOnce` and a request of `1Gi`.\n2. Recreate the Deployment from its manifest at `/tmp/exam/q5/ledger-db.yaml`.\n\nDo not delete or recreate `ledger-pv` and do not change its reclaim policy. When you are finished `ledger-db` must have `1` ready replica that reads the existing data.",
+      "concepts": [
+        "storage",
+        "persistent-volumes",
+        "persistent-volume-claims"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ledger-data is Bound to the original, retained ledger-pv",
+          "verificationScriptFile": "q5_s1_validate_claim.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "2",
+          "description": "ledger-db is ready and reads the original data from the volume",
+          "verificationScriptFile": "q5_s2_validate_workload.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "harbor-api",
+      "machineHostname": "ckad9999",
+      "question": "The Pod `harbor-api` in the namespace `harbor-api` serves HTTP on port `8080`. All ingress traffic to that namespace is denied by the NetworkPolicy `default-deny-ingress`.\n\nThe Pod `crane-ui` in the namespace `harbor-ui`, which carries the label `app=crane-ui`, must be able to reach `harbor-api` on port `8080`.\n\nFour candidate NetworkPolicies are in `/tmp/exam/q6/`. Apply exactly one of them: the **least permissive** policy that allows this traffic.\n\nDo not edit the files, do not create any other policy, and do not modify or delete `default-deny-ingress`.",
+      "concepts": [
+        "network-policies",
+        "services-networking",
+        "security"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Only api-ingress-2 is applied, unchanged, beside the default deny",
+          "verificationScriptFile": "q6_s1_validate_policy_choice.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "crane-ui reaches harbor-api on 8080; nothing else gets through",
+          "verificationScriptFile": "q6_s2_validate_traffic.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "default-deny-ingress is untouched",
+          "verificationScriptFile": "q6_s3_validate_default_deny.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "default",
+      "machineHostname": "ckad9999",
+      "question": "Prepare the worker node `node01` for a container runtime component. Reach it with `ssh node01`, where you are `root`.\n\n1. Install the Debian package `/root/harbor-cri-shim_1.4.2_all.deb`.\n2. Start the systemd service `harbor-cri-shim`, and make sure it also starts automatically when the node boots.\n3. Set the kernel parameters `net.ipv4.ip_forward` and `net.ipv6.conf.all.forwarding` to `1`. Both settings must persist across reboots, configured in a file under `/etc/sysctl.d/`, and must take effect now, without a reboot.",
+      "concepts": [
+        "cluster-architecture",
+        "node-preparation",
+        "systemd",
+        "kernel-parameters"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "harbor-cri-shim 1.4.2 is installed",
+          "verificationScriptFile": "q7_s1_validate_package.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The harbor-cri-shim service is enabled and active",
+          "verificationScriptFile": "q7_s2_validate_service.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Both forwarding parameters are persisted in /etc/sysctl.d and in effect",
+          "verificationScriptFile": "q7_s3_validate_sysctl.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "manifest-ops",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `manifest-api` in the namespace `manifest-ops` runs an init container `schema-migrate`, which writes to `/var/log/manifest/migrate.log`, and a container `api`, which writes to `/var/log/manifest/app.log`. Today neither log leaves its container.\n\nAdd a log shipper to the Deployment:\n\n1. Add an `emptyDir` volume and mount it at `/var/log/manifest` in `schema-migrate`, in `api` and in the shipper.\n2. Add the shipper as a **native sidecar container** named `manifest-shipper` with image `busybox:1.36` and the command `sh -c 'tail -n 0 -F /var/log/manifest/migrate.log /var/log/manifest/app.log'`.\n3. The shipper must already be running when `schema-migrate` starts, so that it ships the migration output too.\n\nDo not change the existing containers' images or commands. When you are finished `2` replicas must be ready, and `kubectl logs -c manifest-shipper` must show lines from both logs.",
+      "concepts": [
+        "sidecar-containers",
+        "init-containers",
+        "volumes",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "manifest-shipper is a native sidecar ahead of schema-migrate, sharing one emptyDir",
+          "verificationScriptFile": "q8_s1_validate_structure.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "2 replicas are rolled out and every sidecar shipped both logs",
+          "verificationScriptFile": "q8_s2_validate_logs.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "default",
+      "machineHostname": "ckad9999",
+      "question": "The worker node `node03` reports `NotReady`. Reach it with `ssh node03`, where you are `root`.\n\nInvestigate and repair it. When you are finished `node03` must be `Ready` and schedulable, and it must become `Ready` again on its own after the node reboots.\n\nDo not remove the node from the cluster or re-join it.",
+      "concepts": [
+        "troubleshooting",
+        "kubelet",
+        "nodes",
+        "systemd"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "node03 is Ready and schedulable",
+          "verificationScriptFile": "q9_s1_validate_node_ready.sh",
+          "expectedOutput": "0",
+          "weightage": 5
+        },
+        {
+          "id": "2",
+          "description": "The kubelet on node03 is enabled at boot, running, and starts a real binary",
+          "verificationScriptFile": "q9_s2_validate_kubelet_enabled.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "pilot-ops",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `pilot-dispatch` in the namespace `pilot-ops` has to be scheduled ahead of the workloads of every other team except the most important one.\n\n1. Create a PriorityClass named `berth-urgent` whose value is exactly one less than the highest value among the existing user-defined PriorityClasses. Ignore the built-in `system-` classes. It must not be the global default.\n2. Make `pilot-dispatch` use the PriorityClass `berth-urgent`. Both of its replicas must be running with the new priority.",
+      "concepts": [
+        "scheduling",
+        "priority-classes",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "berth-urgent has a value one below the highest user-defined class",
+          "verificationScriptFile": "q10_s1_validate_priorityclass.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Both pilot-dispatch Pods run with berth-urgent's priority",
+          "verificationScriptFile": "q10_s2_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "kube-system",
+      "machineHostname": "ckad9999",
+      "question": "This question is set on the **auxiliary cluster**, the same cluster as question 3. Solve question 3 first. Reach its only node with `ssh aux`.\n\nThat cluster has no Pod network: its node is `NotReady` and new Pods never start.\n\nInstall a CNI plugin from one of the manifests in `/root/cni/` on that node. The plugin must enforce NetworkPolicy, and it must allocate Pod addresses from the Pod CIDR the cluster was configured with.\n\nWhen you are finished the node must be `Ready`, and a new Pod must start and receive an address inside the cluster's Pod CIDR.",
+      "concepts": [
+        "cluster-architecture",
+        "cni",
+        "networking",
+        "installation"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Calico runs and the auxiliary node is Ready",
+          "verificationScriptFile": "q11_s1_validate_cni.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Calico's IP pool matches the cluster's Pod CIDR",
+          "verificationScriptFile": "q11_s2_validate_pool.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "A new Pod starts with an address inside the Pod CIDR",
+          "verificationScriptFile": "q11_s3_validate_pod_network.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "tally",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `tally-board` in the namespace `tally` runs nginx, which listens on port `80`, but its container `board` declares no ports.\n\n1. Declare the container port `80`/TCP with the name `http` on the container `board`.\n2. Create a Service named `tally-board-np` of type `NodePort` in the namespace `tally`. It must select the Pods of `tally-board` and expose port `80`, targeting the named port `http`, on node port `30814`.\n\nWhen you are finished, a request from `node01` to node01's own IP address on port `30814` must return the nginx welcome page.",
+      "concepts": [
+        "services",
+        "nodeport",
+        "services-networking"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Container board declares port 80 named http and 2 replicas are ready",
+          "verificationScriptFile": "q12_s1_validate_container_port.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "tally-board-np is a NodePort Service on 30814 targeting http, with 2 endpoints",
+          "verificationScriptFile": "q12_s2_validate_service.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The application answers on node01's address, port 30814",
+          "verificationScriptFile": "q12_s3_validate_reachable.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "namespace": "crane-sim",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `crane-sim` in the namespace `crane-sim` is pinned to the worker node `node02` and is currently scaled to `0`. It has to run `3` replicas on that node, sharing it fairly.\n\n1. Set CPU and memory requests so that node02's allocatable CPU and memory are divided evenly among the `3` Pods, leaving some headroom for the other Pods on the node. Each Pod must request at least one fifth of node02's allocatable CPU and at least one fifth of its allocatable memory.\n2. The init container `load-terrain` and the container `simulator` must have identical requests. Limits are not required.\n3. Scale the Deployment to `3` replicas.\n\nWhen you are finished all `3` Pods must be running and ready on `node02`.",
+      "concepts": [
+        "resource-management",
+        "scheduling",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Init and main containers request the same, fair share of node02",
+          "verificationScriptFile": "q13_s1_validate_requests.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "All 3 Pods are Ready on node02",
+          "verificationScriptFile": "q13_s2_validate_running.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "namespace": "default",
+      "machineHostname": "ckad9999",
+      "question": "Several CustomResourceDefinitions are installed in this cluster.\n\n1. Write the list of all CRDs of the API group `tides.harbor.io` to `/tmp/exam/q14/tide-crds.txt`, using kubectl's default output format.\n2. Using `kubectl`, write the documentation of the field `spec.retention` of the custom resource `TideForecast` to `/tmp/exam/q14/retention-doc.txt`.",
+      "concepts": [
+        "custom-resource-definitions",
+        "kubectl",
+        "cluster-architecture"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "tide-crds.txt lists exactly the CRDs of tides.harbor.io",
+          "verificationScriptFile": "q14_s1_validate_crd_list.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "retention-doc.txt holds kubectl explain output for spec.retention",
+          "verificationScriptFile": "q14_s2_validate_explain.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "namespace": "default",
+      "machineHostname": "ckad9999",
+      "question": "Create a StorageClass named `harbor-fast` that:\n\n- uses the provisioner `rancher.io/local-path`\n- binds a volume only once a Pod uses its claim\n- keeps the volume when its claim is deleted\n- allows volumes to be expanded\n\nMake `harbor-fast` the default StorageClass of the cluster. It must be the **only** default StorageClass. Do not delete the existing StorageClass `standard`.",
+      "concepts": [
+        "storage",
+        "storage-classes"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "harbor-fast: local-path, WaitForFirstConsumer, Retain, expansion allowed",
+          "verificationScriptFile": "q15_s1_validate_storageclass.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "harbor-fast is the only default StorageClass",
+          "verificationScriptFile": "q15_s2_validate_default.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "namespace": "customs",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `customs-gate` in the namespace `customs` is configured for `3` replicas, but none is ready and no Pods exist for it at all.\n\nThe namespace's security settings were put in place by the security team and must not be changed. The container's image `busybox:1.36` and its command must stay as they are.\n\nInvestigate and repair the Deployment. When you are finished all `3` replicas must be ready.",
+      "concepts": [
+        "troubleshooting",
+        "pod-security",
+        "deployments"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "customs-gate has 3 ready replicas",
+          "verificationScriptFile": "q16_s1_validate_rollout.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The namespace still enforces restricted, and image and command are unchanged",
+          "verificationScriptFile": "q16_s2_validate_constraints.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    }
+  ]
+}

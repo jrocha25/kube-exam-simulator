@@ -1,0 +1,11 @@
+{
+  "lab": "cka-007",
+  "workerNodes": 1,
+  "clusterType": "k3d",
+  "answers": "assets/exams/cka/007/answers.md",
+  "questions": "assessment.json",
+  "totalMarks": 100,
+  "lowScore": 60,
+  "mediumScore": 75,
+  "highScore": 85
+}

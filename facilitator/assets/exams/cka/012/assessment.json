@@ -1,0 +1,488 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "node-sensor",
+      "machineHostname": "ckad9999",
+      "question": "The namespace `node-sensor` already exists.\n\nCreate a Pod named `sensor-collector` that is managed directly by the kubelet on the worker node `node02`, and not by the API server. It must live in the `node-sensor` namespace, carry the label `duty=telemetry`, and have a single container named `collector` running the image `nginx:1.27.4`.\n\nIts manifest must be placed in the directory that `node02`'s own kubelet is configured to read static Pod manifests from. Read that path out of the kubelet's configuration on the node rather than assuming it.\n\nYou can reach the node with `ssh node02`.\n\nWhen you are finished `kubectl get pods -n node-sensor -o wide` must show the Pod `Running` on `node02`.",
+      "concepts": [
+        "static-pods",
+        "cluster-architecture",
+        "kubelet"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The manifest is in the directory node02's kubelet reads",
+          "verificationScriptFile": "q1_s1_validate_manifest_path.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "A mirror Pod for a kubelet-managed Pod is Running on node02",
+          "verificationScriptFile": "q1_s2_validate_mirror_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The Pod runs the required image and carries the required label",
+          "verificationScriptFile": "q1_s3_validate_image_label.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "node-relay",
+      "machineHostname": "ckad9999",
+      "question": "A Pod in the `node-relay` namespace will not go away. `kubectl delete pod` reports it deleted, and seconds later it is back under the same name.\n\nIt was left behind by a relay agent that was decommissioned months ago, and nothing depends on it any more. It has to be gone for good. Everything else the cluster is running — including whatever else the node it sits on is responsible for — must keep running, and every node must stay `Ready`.\n\nYou can reach the worker nodes with `ssh node01`, `ssh node02` and `ssh node03`.\n\nWhen you are finished `kubectl get pods -n node-relay` must report that no resources were found, and it must stay that way.",
+      "concepts": [
+        "troubleshooting",
+        "static-pods",
+        "kubelet"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "No Pods remain in the node-relay namespace",
+          "verificationScriptFile": "q2_s1_validate_pod_gone.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The manifest that recreated it is gone from the node",
+          "verificationScriptFile": "q2_s2_validate_manifest_gone.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The control plane static Pods are intact and every node is Ready",
+          "verificationScriptFile": "q2_s3_validate_cluster_intact.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "The kubelet on that node is still running",
+          "verificationScriptFile": "q2_s4_validate_kubelet_up.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "net-tremor",
+      "machineHostname": "ckad9999",
+      "question": "The `net-tremor` namespace runs the Pod `tremor-ingest` (label `app=tremor-ingest`), which serves HTTP on TCP port `8443` and a metrics endpoint on TCP port `9100`. The namespace has no NetworkPolicy yet, so everything can currently reach both ports.\n\nFour Pods may try to reach it:\n\n- `gateway-allowed` (label `station-role=gateway`) in `net-tremor-api`, a namespace labelled `seismo.io/tier=api`\n- `probe-plain` (no labels of its own) in `net-tremor-api`\n- `gateway-outsider` (label `station-role=gateway`) in `net-tremor` itself\n- `wave-any` (label `app=wave-any`) in `net-tremor-wave`, a namespace with no labels of its own\n\nCreate a single NetworkPolicy named `tremor-ingress` in `net-tremor` that restricts ingress to `tremor-ingest` so that:\n\n- port `8443` is reachable **only** from Pods labelled `station-role=gateway` that are running in a namespace labelled `seismo.io/tier=api`\n- port `9100` is reachable from **every** Pod in the `net-tremor-wave` namespace, whatever labels it carries\n- nothing else reaches either port\n\nSelect the `seismo.io/tier` namespace label with a `matchExpressions` term rather than with `matchLabels`.\n\nThe policy must restrict ingress only. Do not change any Pod, any namespace label, or the ports `tremor-ingest` serves.",
+      "concepts": [
+        "network-policies",
+        "networking",
+        "label-selectors"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "tremor-ingress restricts ingress to tremor-ingest only",
+          "verificationScriptFile": "q3_s1_validate_policy.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "gateway-allowed reaches tremor-ingest on 8443",
+          "verificationScriptFile": "q3_s2_validate_gateway_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "probe-plain is denied 8443 from the same namespace",
+          "verificationScriptFile": "q3_s3_validate_plain_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "gateway-outsider is denied 8443 and wave-any reaches only 9100",
+          "verificationScriptFile": "q3_s4_validate_outsider_and_wave.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "net-array",
+      "machineHostname": "ckad9999",
+      "question": "An audit of the `net-array` namespace has come back with a finding: two Pods are able to open connections to `station-relay` on TCP port `8443` that have no business reaching it.\n\n`station-relay` is only ever supposed to accept connections from the collectors of the edge fleet, which run in the `net-array-edge` namespace and carry the label `station-role=collector`. The namespace already has a NetworkPolicy named `array-ingress`, and those collectors are reaching `station-relay` correctly today — that must not change.\n\nThese Pods exist:\n\n- `edge-collector` (label `station-role=collector`) in `net-array-edge` — approved, and must keep working\n- `edge-visitor` (no labels of its own) in `net-array-edge`\n- `local-collector` (label `station-role=collector`) in `net-array` itself\n\nTighten the existing policy so that of those three only `edge-collector` reaches `station-relay` on `8443`.\n\nThe policy must keep the name `array-ingress` and must keep selecting `station-relay`. Do not create or delete any Pod, and do not change any Pod or namespace label.",
+      "concepts": [
+        "troubleshooting",
+        "network-policies",
+        "label-selectors"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "array-ingress still exists and still selects station-relay",
+          "verificationScriptFile": "q4_s1_validate_policy_kept.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "edge-collector still reaches station-relay on 8443",
+          "verificationScriptFile": "q4_s2_validate_approved_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "local-collector is denied 8443 from the server's own namespace",
+          "verificationScriptFile": "q4_s3_validate_local_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 5
+        },
+        {
+          "id": "4",
+          "description": "edge-visitor is denied 8443 from the edge namespace",
+          "verificationScriptFile": "q4_s4_validate_visitor_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "wl-digest",
+      "machineHostname": "ckad9999",
+      "question": "Create a CronJob named `trace-compactor` in the `wl-digest` namespace that behaves exactly like this:\n\n- it runs every `20` minutes\n- a run is never started while the previous one is still going\n- a run that the scheduler is more than `30` seconds late starting is skipped\n- `2` successful runs and `2` failed runs are kept in the history\n- the CronJob is not suspended\n- any single run is abandoned `60` seconds after it starts\n- a failed run is retried at most `2` times\n- a finished run is cleaned up `120` seconds afterwards\n- its Pod has exactly one container, named `compactor`, running `busybox:1.36` with the command `sh -c \"echo compacting traces && sleep 5\"`, and the Pod is restarted only when it fails\n\nEach of those settings belongs at a particular level of the object: some on the CronJob's own spec, some on the Job template's spec, and one on the Pod template. Put each one where it belongs — more than one of them is a valid field at more than one level, and the wrong one is accepted in silence.",
+      "concepts": [
+        "cronjobs",
+        "workloads",
+        "job-scheduling"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The CronJob exists with the required schedule, concurrency policy and starting deadline",
+          "verificationScriptFile": "q5_s1_validate_cronjob_spec.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Both job history limits are set on the CronJob spec",
+          "verificationScriptFile": "q5_s2_validate_history_limits.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The deadline, retry and cleanup fields are on the Job template spec",
+          "verificationScriptFile": "q5_s3_validate_job_spec.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "4",
+          "description": "The Pod template restarts only on failure and carries no job-level field",
+          "verificationScriptFile": "q5_s4_validate_pod_template.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "wl-rotate",
+      "machineHostname": "ckad9999",
+      "question": "The CronJob `digest-trim` in the `wl-rotate` namespace is supposed to trim the daily digest and finish quickly. Instead `kubectl get jobs -n wl-rotate` shows several of its runs active at the same time, each with a Pod that never completes, and the number keeps growing.\n\nThe work the container does must not change: keep its image and its command exactly as they are, and keep the schedule exactly as it is.\n\nBring it under control, so that:\n\n- a new run is never started while the previous one is still going\n- any single run is abandoned `45` seconds after it starts\n- the runs that have already piled up are cleared away\n\nWhen you are finished at most one run of `digest-trim` may be active at any moment.",
+      "concepts": [
+        "troubleshooting",
+        "cronjobs",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "digest-trim never starts a run while one is going",
+          "verificationScriptFile": "q6_s1_validate_concurrency.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "A run is abandoned after 45 seconds, set at the Job template level",
+          "verificationScriptFile": "q6_s2_validate_deadline.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "At most one run of digest-trim is active",
+          "verificationScriptFile": "q6_s3_validate_one_active.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "The container image and command are unchanged",
+          "verificationScriptFile": "q6_s4_validate_work_unchanged.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "svc-catalog",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `station-catalog` in the `svc-catalog` namespace runs `3` ready replicas, each serving HTTP on container port `80`. The Pod `catalog-probe` in the same namespace reads from them through the Service `station-catalog-svc`, but every connection it makes fails.\n\nThe Deployment and its Pods are owned by the data team and must not be modified in any way.\n\nInvestigate and repair the Service.\n\nWhen you are finished the Service must still be named `station-catalog-svc`, must still be of type `ClusterIP` on service port `80`, and all `3` Pods must appear behind it as ready endpoints, so that a request from `catalog-probe` to the Service's cluster IP on port `80` succeeds.",
+      "concepts": [
+        "troubleshooting",
+        "services",
+        "endpoints"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "All 3 Pods are ready endpoints of station-catalog-svc on container port 80",
+          "verificationScriptFile": "q7_s1_validate_endpoints.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "2",
+          "description": "catalog-probe reaches the Service on port 80",
+          "verificationScriptFile": "q7_s2_validate_probe_reaches.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The Deployment was not modified",
+          "verificationScriptFile": "q7_s3_validate_deployment_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "dns-station",
+      "machineHostname": "ckad9999",
+      "question": "The `dns-station` namespace runs a StatefulSet named `station-index` with `2` replicas behind the headless Service `station-index`, and a Pod named `dns-tool` running `busybox:1.36`.\n\nFrom inside a Pod in that namespace, resolve the DNS name of the **first** replica — the per-Pod record that a headless Service publishes, `station-index-0.station-index.dns-station.svc.cluster.local.` — and save the complete, unedited output of that lookup to `/tmp/exam/q8/lookup.txt` on this machine.\n\nNote the trailing dot. The name is absolute, and a Pod's resolver would otherwise try its search list first.\n\nThe file has to hold the output of a lookup that really ran inside the cluster. Do not change the Service or the StatefulSet.",
+      "concepts": [
+        "dns",
+        "services",
+        "statefulsets"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The lookup file exists and names the per-Pod record",
+          "verificationScriptFile": "q8_s1_validate_lookup_file.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The lookup really ran inside the cluster and resolved the first replica",
+          "verificationScriptFile": "q8_s2_validate_resolved_ip.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "3",
+          "description": "station-index is still the same headless Service",
+          "verificationScriptFile": "q8_s3_validate_service_kept.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "wl-waveform",
+      "machineHostname": "ckad9999",
+      "question": "Create a Pod named `waveform-writer` in the `wl-waveform` namespace with:\n\n- one init container named `seed-ledger`, image `busybox:1.36`, running the command `sh -c \"echo '=== waveform ledger opened ===' > /srv/waveforms/ledger.log\"`\n- exactly two regular containers, `waveform-app` and `ledger-tail`, and no others\n- `waveform-app`: image `busybox:1.36`, running the command `sh -c 'while true; do echo \"$(date) waveform written\" >> /srv/waveforms/ledger.log; sleep 5; done'`\n- `ledger-tail`: image `busybox:1.36`, running the command `sh -c 'tail -f /srv/waveforms/ledger.log'`\n- one volume named `ledger`, of type `emptyDir`, mounted at `/srv/waveforms` in **all three** containers\n\n`seed-ledger` must run to completion before the other two start, and must not stay running alongside them.\n\nWhen you are finished the Pod must be `Running` with both regular containers ready, and `kubectl logs waveform-writer -c ledger-tail -n wl-waveform` must show the header line `=== waveform ledger opened ===` that `seed-ledger` wrote.",
+      "concepts": [
+        "init-containers",
+        "multi-container-pods",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "seed-ledger is an init container that ran to completion and did not stay up",
+          "verificationScriptFile": "q9_s1_validate_init_container.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The Pod has exactly two regular containers, with the required names",
+          "verificationScriptFile": "q9_s2_validate_regular_containers.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The ledger volume is an emptyDir",
+          "verificationScriptFile": "q9_s3_validate_volume.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "All three containers mount it at the same path and the Pod is ready",
+          "verificationScriptFile": "q9_s4_validate_mounts.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "wl-shipper",
+      "machineHostname": "ckad9999",
+      "question": "Create a Pod named `trace-shipper` in the `wl-shipper` namespace that runs its log shipper as a **native sidecar**: a container that starts before the application, keeps running alongside it for the whole life of the Pod, and is not one of the Pod's regular containers.\n\nThe Pod must have:\n\n- exactly one regular container, named `trace-app`, image `busybox:1.36`, running the command `sh -c 'while true; do echo \"$(date) trace emitted\" >> /var/spool/traces/trace.log; sleep 5; done'`\n- a container named `prepare-spool`, image `busybox:1.36`, running the command `sh -c 'touch /var/spool/traces/trace.log'`, which exits before anything else starts\n- the native sidecar, named `log-forwarder`, image `busybox:1.36`, running the command `sh -c 'tail -f /var/spool/traces/trace.log'` for as long as the Pod lives\n- one volume named `spool`, of type `emptyDir`, mounted at `/var/spool/traces` in all three containers\n\nThe order matters: `prepare-spool` runs to completion first, then `log-forwarder` starts and stays up.\n\nWhen you are finished the Pod must be `Running`, with `trace-app` ready and `log-forwarder` still running alongside it.",
+      "concepts": [
+        "sidecar-containers",
+        "init-containers",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The Pod has exactly one regular container, named trace-app",
+          "verificationScriptFile": "q10_s1_validate_regular_container.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "log-forwarder is a native sidecar and prepare-spool is a plain init container",
+          "verificationScriptFile": "q10_s2_validate_sidecar.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The sidecar is running alongside a ready application, after prepare-spool finished",
+          "verificationScriptFile": "q10_s3_validate_running_together.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "All three containers share the spool emptyDir",
+          "verificationScriptFile": "q10_s4_validate_volume.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "sched-epicenter",
+      "machineHostname": "ckad9999",
+      "question": "The Pod `epicenter-plot` in the `sched-epicenter` namespace has been `Pending` since it was created, and none of its containers has ever started.\n\nIt is the only plotting job the observatory runs, and it has to end up `Running` on the worker node `node02`.\n\nThe Pod itself must not be changed, and it must not be deleted and recreated: the Pod that is there now, with the identity it already has, is the one that has to end up running.\n\nWhen you are finished `kubectl get pod epicenter-plot -n sched-epicenter -o wide` must show it `Running` on `node02`.",
+      "concepts": [
+        "troubleshooting",
+        "scheduling",
+        "node-labels"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The same epicenter-plot Pod, not a replacement, is Running on node02",
+          "verificationScriptFile": "q11_s1_validate_running.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "node02 carries the label the Pod requires",
+          "verificationScriptFile": "q11_s2_validate_node_label.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The Pod's own spec was not modified",
+          "verificationScriptFile": "q11_s3_validate_pod_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "sched-borehole",
+      "machineHostname": "ckad9999",
+      "question": "The Pod `borehole-sampler` in the `sched-borehole` namespace is `Pending`. It is pinned to the worker node `node03`, which is `Ready` and has plenty of free CPU and memory.\n\nThe configuration of the cluster nodes is owned by the platform team, so nothing about `node03` may be changed. The Pod must stay pinned to `node03`.\n\nGet it running, matching whatever it has to match explicitly by key and by value rather than with a catch-all.\n\nWhen you are finished `kubectl get pod borehole-sampler -n sched-borehole -o wide` must show it `Running` on `node03`.",
+      "concepts": [
+        "troubleshooting",
+        "scheduling",
+        "taints-and-tolerations"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "borehole-sampler is Running on node03, whose own configuration is untouched",
+          "verificationScriptFile": "q12_s1_validate_running.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The Pod matches what node03 requires by key and by value",
+          "verificationScriptFile": "q12_s2_validate_toleration.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The Pod is still pinned to node03",
+          "verificationScriptFile": "q12_s3_validate_still_pinned.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "namespace": "query-observatory",
+      "machineHostname": "ckad9999",
+      "question": "Write two files on this machine, reading the cluster as the source of truth.\n\n1. `/tmp/exam/q13/ready-nodes.txt` — the name of every node whose `Ready` condition is currently `True`, one name per line and nothing else. The order does not matter.\n2. `/tmp/exam/q13/ns-count.txt` — the number of namespaces in the cluster, as a single integer and nothing else.\n\nHow you produce them is up to you; only what the files contain is graded. Do not create or delete namespaces after writing the second file.",
+      "concepts": [
+        "kubectl",
+        "jsonpath",
+        "cluster-architecture"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ready-nodes.txt lists exactly the nodes that are Ready",
+          "verificationScriptFile": "q13_s1_validate_ready_nodes.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "ns-count.txt holds the current number of namespaces",
+          "verificationScriptFile": "q13_s2_validate_ns_count.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    }
+  ]
+}

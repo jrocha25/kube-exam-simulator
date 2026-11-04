@@ -1,0 +1,665 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "store-data",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `ledger-api` in the `store-data` namespace is configured for `1` replica, but its Pod never reaches the `Running` state.\n\nThe ledger keeps its data on a PersistentVolume. This cluster provisions storage dynamically: nothing in this namespace is backed by a hand made PersistentVolume, and none should be created by hand now.\n\nInvestigate the namespace and bring the application up.\n\nWhen you are finished the PersistentVolumeClaim must still be named `ledger-data`, must still request `1Gi` with access mode `ReadWriteOnce`, and must be `Bound`. The Deployment must still be named `ledger-api`, still declare `1` replica, still have exactly one container named `api` running `nginx:1.27.4`, and that container must mount the claim at `/var/lib/ledger`.",
+      "concepts": [
+        "troubleshooting",
+        "storage",
+        "dynamic-provisioning"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "PersistentVolumeClaim ledger-data requests 1Gi ReadWriteOnce and is Bound",
+          "verificationScriptFile": "q1_s1_validate_pvc.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Deployment ledger-api has 1 ready replica running nginx:1.27.4",
+          "verificationScriptFile": "q1_s2_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The container api mounts ledger-data at /var/lib/ledger",
+          "verificationScriptFile": "q1_s3_validate_mount.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "store-tier",
+      "machineHostname": "ckad9999",
+      "question": "Set up a retained archive tier in the `store-tier` namespace.\n\n1. Create a StorageClass named `slow-retain` with exactly these specifications:\n\n- Provisioner: `rancher.io/local-path`\n- Reclaim policy: `Retain`\n- Volume binding mode: `WaitForFirstConsumer`\n- Volume expansion: allowed\n\n2. Create a PersistentVolumeClaim named `archive-claim` in the `store-tier` namespace that requests `2Gi` with access mode `ReadWriteOnce` from that StorageClass.\n\n3. Create a Pod named `archive-writer` in the `store-tier` namespace with a single container named `writer` using the image `nginx:1.27.4`, mounting that claim at `/data`.\n\nWhen you are finished the claim must be `Bound` and the Pod must be `Running`.",
+      "concepts": [
+        "storage",
+        "storage-classes",
+        "persistent-volume-claims"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "StorageClass slow-retain has the required provisioner, reclaim policy and binding mode",
+          "verificationScriptFile": "q2_s1_validate_storageclass.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "PersistentVolumeClaim archive-claim requests 2Gi ReadWriteOnce from slow-retain and is Bound",
+          "verificationScriptFile": "q2_s2_validate_pvc.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Pod archive-writer is Running and mounts the claim at /data",
+          "verificationScriptFile": "q2_s3_validate_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "insight",
+      "machineHostname": "ckad9999",
+      "question": "The `insight` namespace is being reviewed. Produce two reports on this machine.\n\nEach file must contain only the requested data, with no column headers and no extra lines.\n\n1. `/tmp/exam/q3/restarts.txt` — the name of the single Pod in the `insight` namespace whose containers have restarted the most times, and nothing else.\n\n2. `/tmp/exam/q3/nodes.txt` — one line per node in the cluster holding the node's name followed by its `InternalIP` address, separated by whitespace, sorted by node name in ascending order.",
+      "concepts": [
+        "kubectl",
+        "jsonpath",
+        "observability"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "/tmp/exam/q3/restarts.txt names the most frequently restarted Pod",
+          "verificationScriptFile": "q3_s1_validate_restarts.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "/tmp/exam/q3/nodes.txt reports every node with its InternalIP, sorted by name",
+          "verificationScriptFile": "q3_s2_validate_nodes.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "registry-audit",
+      "machineHostname": "ckad9999",
+      "question": "The `registry-audit` namespace admitted workloads with no memory limits, and the platform team wants that to stop being possible.\n\n1. Create a LimitRange named `audit-defaults` in the `registry-audit` namespace that gives every container a default memory limit of `256Mi` and a default memory request of `128Mi`, and that refuses any container whose memory limit exceeds `512Mi`.\n\n2. The Pod `search-api` was admitted before the policy existed and still runs without a memory limit. Bring it under the new policy, keeping its name, its single container named `api` and its image `nginx:1.27.4`. Do not give it a memory limit of its own.\n\nWhen you are finished `search-api` must be `Running` with a memory limit of `256Mi`, and an attempt to create a Pod in `registry-audit` with a memory limit of `1Gi` must be refused by the API server.",
+      "concepts": [
+        "resource-management",
+        "limitrange",
+        "pod-admission"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "LimitRange audit-defaults sets the required memory default, request and maximum",
+          "verificationScriptFile": "q4_s1_validate_limitrange.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Pod search-api is Running with the defaulted 256Mi memory limit",
+          "verificationScriptFile": "q4_s2_validate_defaulted_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "A Pod requesting a 1Gi memory limit is refused by the namespace policy",
+          "verificationScriptFile": "q4_s3_validate_rejection.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "scale-web",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `storefront` in the `scale-web` namespace already declares CPU and memory requests.\n\nCreate a HorizontalPodAutoscaler named `storefront-hpa` in the `scale-web` namespace, using the `autoscaling/v2` API version, that targets that Deployment with exactly these specifications:\n\n- Minimum replicas: `3`\n- Maximum replicas: `12`\n- Scales on `70`% average CPU utilization\n- Also scales on `80`% average memory utilization\n- Acts on scale up decisions immediately, with no stabilization window\n- When scaling up, may add either `4` Pods every `60` seconds or `100`% of the current replicas every `60` seconds, whichever produces the larger change",
+      "concepts": [
+        "autoscaling",
+        "horizontal-pod-autoscaler",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "HorizontalPodAutoscaler storefront-hpa targets storefront and scales between 3 and 12",
+          "verificationScriptFile": "q5_s1_validate_hpa.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The autoscaler targets 70% CPU and 80% memory utilization",
+          "verificationScriptFile": "q5_s2_validate_metrics.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The scale up behavior has no stabilization window and both required policies",
+          "verificationScriptFile": "q5_s3_validate_behavior.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "scale-batch",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `render-worker` in the `scale-batch` namespace is managed by the HorizontalPodAutoscaler `render-worker-hpa`, which is configured to keep at least `2` replicas and to scale on `60`% average CPU utilization.\n\nThe autoscaler reports its current CPU metric as `<unknown>` and the Deployment has never been scaled, whatever load the workers are under.\n\n`render-worker` is a CPU bound batch worker. A single replica has been measured at roughly a tenth of a CPU core and `64Mi` of memory in steady state, and the nodes it runs on are shared with other teams.\n\nInvestigate and get the autoscaler working.\n\nWhen you are finished the autoscaler must report a real CPU utilization percentage instead of `<unknown>` and the Deployment must be running at least `2` ready replicas. Do not change the autoscaler's minimum or maximum replicas or its target metric, and the Deployment must still have exactly one container, named `worker`, running `nginx:1.27.4`.",
+      "concepts": [
+        "troubleshooting",
+        "autoscaling",
+        "resource-requests"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The container worker declares a CPU request",
+          "verificationScriptFile": "q6_s1_validate_requests.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "render-worker-hpa can read CPU utilization and reports ScalingActive",
+          "verificationScriptFile": "q6_s2_validate_scaling_active.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The autoscaler reports a current CPU utilization across at least 2 ready replicas",
+          "verificationScriptFile": "q6_s3_validate_replicas.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "net-tier",
+      "machineHostname": "ckad9999",
+      "question": "The `net-tier` namespace runs the Helioscale payments service. The Pod `payments` carries the label `app=payments` and serves HTTP on port `80`.\n\nPayments may be reached only by Pods running in namespaces labelled `team=trusted`, and only on TCP port `80`. Nothing else may reach it, neither Pods in unlabelled namespaces nor other Pods in `net-tier` itself.\n\nCreate a NetworkPolicy named `payments-ingress` in the `net-tier` namespace that enforces exactly that.\n\nDo not change any existing Pod, and do not add or remove any namespace label.",
+      "concepts": [
+        "networking",
+        "network-policies",
+        "security"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "A NetworkPolicy named payments-ingress restricts ingress for the app=payments Pods",
+          "verificationScriptFile": "q7_s1_validate_policy.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "A Pod in the trusted namespace can still reach payments on port 80",
+          "verificationScriptFile": "q7_s2_validate_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "A Pod in an unlabelled namespace cannot reach payments",
+          "verificationScriptFile": "q7_s3_validate_denied_namespace.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "A Pod in the same namespace cannot reach payments",
+          "verificationScriptFile": "q7_s4_validate_denied_local.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "net-egress",
+      "machineHostname": "ckad9999",
+      "question": "The Pod `frontend` in the `net-egress` namespace can no longer reach the `backend` Service: every request fails while looking up the host name. The `backend` Pod itself is healthy and serves HTTP on port `80`.\n\n`frontend` is deliberately restricted. It is allowed to talk to the `backend` Service in its own namespace and to nothing else, and that restriction was put in place on purpose and must stay in force.\n\nInvestigate and restore the frontend's access to the backend.\n\nWhen you are finished `frontend` must be able to resolve `backend.net-egress.svc.cluster.local` and to fetch `http://backend` successfully, while still being unable to reach the Pod `other` in the same namespace. Keep the existing NetworkPolicy named `frontend-egress`: do not delete it, and do not add a rule that permits all egress traffic.",
+      "concepts": [
+        "troubleshooting",
+        "network-policies",
+        "dns"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The NetworkPolicy frontend-egress is still in force and still restricts egress",
+          "verificationScriptFile": "q8_s1_validate_policy_kept.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "frontend can resolve backend.net-egress.svc.cluster.local",
+          "verificationScriptFile": "q8_s2_validate_dns.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "frontend can fetch http://backend",
+          "verificationScriptFile": "q8_s3_validate_backend.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "frontend still cannot reach the Pod other",
+          "verificationScriptFile": "q8_s4_validate_still_restricted.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "rbac-app",
+      "machineHostname": "ckad9999",
+      "question": "Configure read only access for a reporting job in the `rbac-app` namespace.\n\n1. Create a ServiceAccount named `report-runner` in the `rbac-app` namespace.\n\n2. Create a Role named `report-reader` in the `rbac-app` namespace that allows `get`, `list` and `watch` on `pods`, `get` on `pods/log`, and `get` and `list` on `configmaps`.\n\n3. Create a RoleBinding named `report-runner-read` in the `rbac-app` namespace that grants that Role to that ServiceAccount.\n\nThe account must not be able to create or delete anything, and must have no access at all in the `rbac-app-staging` namespace.",
+      "concepts": [
+        "rbac",
+        "service-accounts",
+        "roles"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ServiceAccount report-runner exists",
+          "verificationScriptFile": "q9_s1_validate_sa.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "Role report-reader grants the required read access",
+          "verificationScriptFile": "q9_s2_validate_role.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "RoleBinding report-runner-read binds the Role to the ServiceAccount",
+          "verificationScriptFile": "q9_s3_validate_binding.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "The grant is read only and stops at the namespace boundary",
+          "verificationScriptFile": "q9_s4_validate_scope.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "rbac-ops",
+      "machineHostname": "ckad9999",
+      "question": "The on-call engineers need to debug Pods in one namespace and to read cluster level inventory everywhere.\n\n1. Create a ServiceAccount named `oncall` in the `rbac-ops` namespace.\n\n2. Create a ClusterRole named `pod-debugger` that allows `get` and `list` on `pods`, `get` on `pods/log` and `create` on `pods/exec`.\n\n3. Grant `pod-debugger` to `oncall`, but only inside the `rbac-ops` namespace, using a binding named `oncall-debug`. The account must have none of those permissions in the `rbac-ops-secure` namespace.\n\n4. Create a ClusterRole named `node-viewer` that allows `get` and `list` on `nodes` and `persistentvolumes`, and grant it to `oncall` across the whole cluster using a binding named `oncall-node-view`.",
+      "concepts": [
+        "rbac",
+        "cluster-roles",
+        "service-accounts"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ClusterRole pod-debugger grants the required debugging verbs",
+          "verificationScriptFile": "q10_s1_validate_clusterrole.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "oncall-debug grants pod-debugger to oncall inside rbac-ops only",
+          "verificationScriptFile": "q10_s2_validate_rolebinding.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "ClusterRole node-viewer is granted cluster wide by oncall-node-view",
+          "verificationScriptFile": "q10_s3_validate_cluster_view.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "The effective permissions match the required scope",
+          "verificationScriptFile": "q10_s4_validate_permissions.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "rbac-broken",
+      "machineHostname": "ckad9999",
+      "question": "The automation that runs as the ServiceAccount `sync-agent` in the `rbac-broken` namespace fails on every run with `deployments.apps is forbidden`, even though a Role and a RoleBinding for it already exist in that namespace.\n\n`sync-agent` reconciles the Deployments of the `rbac-broken` namespace and must never gain access to any other namespace.\n\nInvestigate and restore the account's access.\n\nWhen you are finished `sync-agent` must be able to `get`, `list`, `watch` and `update` Deployments and to `get` and `list` Pods in `rbac-broken`, and must still be refused those actions in the `rbac-broken-staging` namespace. Keep the ServiceAccount, the Role and the RoleBinding under the names they already have.",
+      "concepts": [
+        "troubleshooting",
+        "rbac",
+        "service-accounts"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The ServiceAccount, Role and RoleBinding kept their names and the binding targets the right subject",
+          "verificationScriptFile": "q11_s1_validate_objects_kept.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "sync-agent can get, list, watch and update Deployments in rbac-broken",
+          "verificationScriptFile": "q11_s2_validate_deployments.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "sync-agent can get and list Pods in rbac-broken",
+          "verificationScriptFile": "q11_s3_validate_pods.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "sync-agent has no access in rbac-broken-staging",
+          "verificationScriptFile": "q11_s4_validate_scope.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "helm-pub",
+      "machineHostname": "ckad9999",
+      "question": "Deploy the Helioscale edge web tier from a public chart into the `helm-pub` namespace.\n\n1. Add the chart repository `https://stefanprodan.github.io/podinfo` under the name `podinfo`.\n\n2. Install the `podinfo` chart from that repository as a release named `podinfo` in the `helm-pub` namespace, overriding `replicaCount` to `2` and `ui.message` to `helioscale edge`.\n\n3. Once it is running, upgrade the release so that it runs `4` replicas. The custom UI message must survive the upgrade.\n\nWhen you are finished the release must be at revision `2` or higher with status `deployed`, both overridden values must still be in effect, and the Deployment it manages must have `4` ready replicas.",
+      "concepts": [
+        "helm",
+        "package-management",
+        "repositories"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The podinfo chart repository is configured",
+          "verificationScriptFile": "q12_s1_validate_repo.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "The release podinfo is deployed and has been upgraded at least once",
+          "verificationScriptFile": "q12_s2_validate_release.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Both overridden values survived the upgrade",
+          "verificationScriptFile": "q12_s3_validate_values.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The Deployment managed by the release has 4 ready replicas",
+          "verificationScriptFile": "q12_s4_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "namespace": "helm-broken",
+      "machineHostname": "ckad9999",
+      "question": "A Helm chart for the order book service is on this machine at `/tmp/exam/q13/orderbook`. Installing it into the `helm-broken` namespace fails: Helm renders the chart, but the install is rejected before any of its objects are created.\n\nThe chart is maintained by your team, so you may edit it. It must keep rendering its Deployment and its Service from its own templates, and must keep reading its replica count from `values.yaml`.\n\nInvestigate and get the chart installed.\n\nWhen you are finished `helm template /tmp/exam/q13/orderbook` must render without error, a Helm release named `orderbook` must exist in the `helm-broken` namespace with status `deployed`, and the Deployment it creates must have `3` ready replicas running `nginx:1.27.4`.",
+      "concepts": [
+        "troubleshooting",
+        "helm",
+        "package-management"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The release orderbook is deployed in helm-broken",
+          "verificationScriptFile": "q13_s1_validate_release.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The Deployment orderbook has 3 ready replicas of nginx:1.27.4",
+          "verificationScriptFile": "q13_s2_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The chart renders cleanly and still reads its replica count from values.yaml",
+          "verificationScriptFile": "q13_s3_validate_template.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "namespace": "kustom-app",
+      "machineHostname": "ckad9999",
+      "question": "A Kustomize base is on this machine at `/tmp/exam/q14/base`. It builds a Deployment and a Service named `web`, and generates the ConfigMap that the Deployment mounts.\n\nCreate an overlay at `/tmp/exam/q14/overlays/prod` that builds on that base and:\n\n- Places every resource in the `kustom-app` namespace\n- Prefixes every resource name with `prod-`\n- Adds the label `tier: frontend` to every resource\n- Changes the tag of the `nginx` image to `1.27.4`\n- Sets the Deployment to `4` replicas\n- Replaces the generated ConfigMap so that its `index.html` key contains `production` instead of `base`\n\nApply the overlay to the cluster.\n\nDo not edit anything under `/tmp/exam/q14/base`. When you are finished the `kustom-app` namespace must contain a Deployment `prod-web` with `4` ready replicas that mounts the regenerated ConfigMap.",
+      "concepts": [
+        "kustomize",
+        "configuration-management",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Deployment prod-web runs 4 ready replicas in kustom-app",
+          "verificationScriptFile": "q14_s1_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The image, name prefix and common label transformations were applied",
+          "verificationScriptFile": "q14_s2_validate_transforms.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The Deployment mounts the regenerated ConfigMap",
+          "verificationScriptFile": "q14_s3_validate_configmap.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "namespace": "kustom-fix",
+      "machineHostname": "ckad9999",
+      "question": "Running `kubectl kustomize /tmp/exam/q15/overlays/staging` exits with an error and produces no output.\n\nThe base under `/tmp/exam/q15/base` is shared with other teams and must not be edited. Only the `staging` overlay is yours, and it must keep using both of the patch files it already contains, `replicas-patch.yaml` and `image-patch.yaml`.\n\nInvestigate and repair the overlay, then write its rendered output to `/tmp/exam/q15/rendered.yaml`.\n\nThe rendered Deployment must be in the `kustom-fix` namespace, must declare `5` replicas and must run the image `nginx:1.27.4`. Do not apply the overlay: the `kustom-fix` namespace must stay empty.",
+      "concepts": [
+        "troubleshooting",
+        "kustomize",
+        "configuration-management"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The staging overlay renders cleanly and still uses both patch files",
+          "verificationScriptFile": "q15_s1_validate_render.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The rendered Deployment has the required namespace, replicas and image",
+          "verificationScriptFile": "q15_s2_validate_values.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The shared base is unchanged and nothing was applied to the cluster",
+          "verificationScriptFile": "q15_s3_validate_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "namespace": "edge-shop",
+      "machineHostname": "ckad9999",
+      "question": "Helioscale is publishing its shop through the Gateway API in the `edge-shop` namespace. The namespace already contains the Services `shop-web` and `shop-api`, both on port `80`. The cluster's Gateway controller registers a GatewayClass named `traefik`.\n\n1. Create a Gateway named `shop-gw` in the `edge-shop` namespace using that GatewayClass, with a single HTTP listener named `web` on port `80` for the hostname `shop.helioscale.io`, accepting routes only from its own namespace.\n\n2. Create an HTTPRoute named `shop-route` in the `edge-shop` namespace, attached to that Gateway and serving `shop.helioscale.io`, with two rules:\n\n- Requests whose path starts with `/api` go to `shop-api` on port `80`, and the matched `/api` prefix is replaced with `/` before the request is forwarded.\n- All other requests go to `shop-web` on port `80`, with the header `X-Edge: helioscale` added to the request.\n\nWhen you are finished the Gateway must report `Accepted` and the route must report `Accepted` for that Gateway.",
+      "concepts": [
+        "gateway-api",
+        "networking",
+        "http-routes"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Gateway shop-gw serves HTTP:80 for shop.helioscale.io and was accepted",
+          "verificationScriptFile": "q16_s1_validate_gateway.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "HTTPRoute shop-route is attached to shop-gw and serves the hostname",
+          "verificationScriptFile": "q16_s2_validate_route_attached.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The /api rule rewrites the prefix and routes to shop-api",
+          "verificationScriptFile": "q16_s3_validate_api_rule.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "The catch all rule adds the edge header and routes to shop-web",
+          "verificationScriptFile": "q16_s4_validate_web_rule.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "namespace": "edge-team",
+      "machineHostname": "ckad9999",
+      "question": "The Gateway `platform-gw` in the `edge-platform` namespace is the shared entry point for `*.helioscale.io`. Its listener `web` currently accepts routes only from its own namespace.\n\nThe application team owns the `edge-team` namespace, where the Service `team-api` serves port `80`.\n\n1. Open the `web` listener to HTTPRoutes from any namespace labelled `gateway-access=allowed`, without changing its name, its port or its hostname.\n\n2. Label the `edge-team` namespace so that it qualifies.\n\n3. Create an HTTPRoute named `team-route` in the `edge-team` namespace that attaches specifically to the `web` listener of `platform-gw` in `edge-platform`, serves the hostname `team.helioscale.io`, and routes all requests to `team-api` on port `80`.\n\nWhen you are finished the route must report `Accepted` and `ResolvedRefs` for that Gateway.",
+      "concepts": [
+        "gateway-api",
+        "networking",
+        "cross-namespace-references"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The web listener accepts routes from namespaces labelled gateway-access=allowed",
+          "verificationScriptFile": "q17_s1_validate_listener.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The edge-team namespace carries the required label",
+          "verificationScriptFile": "q17_s2_validate_namespace_label.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "HTTPRoute team-route targets the web listener of edge-platform/platform-gw",
+          "verificationScriptFile": "q17_s3_validate_route.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The route is accepted by the Gateway in the platform namespace",
+          "verificationScriptFile": "q17_s4_validate_attachment.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "namespace": "edge-stuck",
+      "machineHostname": "ckad9999",
+      "question": "Requests to `http://catalog.helioscale.io` never reach the catalog application in the `edge-stuck` namespace. The HTTPRoute `catalog-route` exists there, but no traffic is served through it.\n\nThe Deployment and the Service named `catalog` are healthy and must be left alone. The Gateway `edge-gw` belongs to the platform team: its listener, its hostname and the namespaces it accepts routes from must not be changed.\n\nInvestigate and repair the route.\n\nWhen you are finished the HTTPRoute `catalog-route` must report both `Accepted` and `ResolvedRefs` as `True` for the Gateway `edge-gw`, must serve the hostname that Gateway publishes, and must route every path to the Service `catalog` on port `80`.",
+      "concepts": [
+        "troubleshooting",
+        "gateway-api",
+        "networking"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Gateway edge-gw is unchanged",
+          "verificationScriptFile": "q18_s1_validate_gateway_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "catalog-route serves the published hostname and routes to the catalog Service",
+          "verificationScriptFile": "q18_s2_validate_route.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "catalog-route reports Accepted and ResolvedRefs for edge-gw",
+          "verificationScriptFile": "q18_s3_validate_status.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    }
+  ]
+}

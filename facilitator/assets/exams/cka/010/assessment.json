@@ -1,0 +1,513 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "upgrade-aux",
+      "machineHostname": "ckad9999",
+      "question": "This question is set on a **separate cluster** from the rest of this lab. Reach its only node with `ssh aux` from this machine; `kubectl` on that node is already configured for that cluster. Do not run this question against the lab cluster.\n\nThat cluster runs Kubernetes `1.33.12` and must be upgraded to exactly `1.34.10` using `kubeadm`. `kubeadm`, `kubelet` and `kubectl` on the node were installed from the Kubernetes apt repository and are on hold.\n\nUpgrade the control plane first and the kubelet afterwards, following the standard kubeadm upgrade procedure: drain the node before upgrading its kubelet and make it schedulable again when done.\n\nWhen you are finished `kubeadm`, `kubelet` and `kubectl` on the node must all report `1.34.10`; the API server, controller manager and scheduler must run `1.34.10`; the node must report `Ready` with kubelet `1.34.10` and must be schedulable; and the three packages must be on hold again.",
+      "concepts": [
+        "cluster-architecture",
+        "kubeadm",
+        "upgrade"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "kubeadm and kubectl on the node are 1.34.10",
+          "verificationScriptFile": "q1_s1_validate_binaries.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The API server, controller manager and scheduler run 1.34.10",
+          "verificationScriptFile": "q1_s2_validate_control_plane.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "3",
+          "description": "The node is Ready with kubelet 1.34.10",
+          "verificationScriptFile": "q1_s3_validate_kubelet.sh",
+          "expectedOutput": "0",
+          "weightage": 5
+        },
+        {
+          "id": "4",
+          "description": "The node is schedulable and the packages are held",
+          "verificationScriptFile": "q1_s4_validate_schedulable_held.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "join-node",
+      "machineHostname": "ckad9999",
+      "question": "The lab cluster is supposed to have three worker nodes. The one reachable as `ssh node03` (hostname `cluster-worker3`) was reset with `kubeadm reset` during maintenance and no longer belongs to the cluster: `kubectl get nodes` does not list it and the kubelet on it is stopped.\n\nJoin it back into the cluster as a worker node using `kubeadm`. Use `ssh controlplane` for anything you need from the control plane.\n\nWhen you are finished the node must be listed by `kubectl get nodes` under its hostname, report `Ready`, be schedulable, and run the cluster's network add-on so that Pods scheduled on it start normally. The kubelet on the node must be running.",
+      "concepts": [
+        "cluster-architecture",
+        "kubeadm",
+        "nodes"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "cluster-worker3 is back in the cluster and Ready",
+          "verificationScriptFile": "q2_s1_validate_node_ready.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The network add-on runs on the node and Pods scheduled there start",
+          "verificationScriptFile": "q2_s2_validate_workload.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The kubelet on node03 is running with a cluster kubeconfig",
+          "verificationScriptFile": "q2_s3_validate_kubelet.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The node is schedulable",
+          "verificationScriptFile": "q2_s4_validate_schedulable.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "etcd-restore",
+      "machineHostname": "ckad9999",
+      "question": "This question is set on the **separate cluster** reached with `ssh aux` (see question 1).\n\nAn etcd snapshot of that cluster was taken at `/opt/etcd-backup/aux-snapshot.db` on its node, before a data migration went wrong. Since the snapshot was taken, the ConfigMap `ledger-state` in the namespace `etcd-restore` has been deleted, and a ConfigMap named `migration-scratch` has been created in the same namespace.\n\nFirst take a new snapshot of the cluster's **current** etcd state to `/opt/etcd-backup/before-restore.db` on the node. Then restore the cluster from `/opt/etcd-backup/aux-snapshot.db`. etcd must keep serving from its original data directory, `/var/lib/etcd`. `etcdctl` and `etcdutl` are installed on the node, and the certificates etcd uses are under `/etc/kubernetes/pki/etcd/`.\n\nWhen you are finished `ledger-state` must exist again with its original contents, `migration-scratch` must be gone, and the cluster must be fully working.",
+      "concepts": [
+        "etcd",
+        "backup",
+        "restore"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "A valid snapshot of the pre-restore state exists at /opt/etcd-backup/before-restore.db",
+          "verificationScriptFile": "q3_s1_validate_snapshot.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "ledger-state is back with its original contents and migration-scratch is gone",
+          "verificationScriptFile": "q3_s2_validate_state.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "3",
+          "description": "etcd is serving restored data",
+          "verificationScriptFile": "q3_s3_validate_restored.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "4",
+          "description": "etcd serves from /var/lib/etcd and the cluster is healthy",
+          "verificationScriptFile": "q3_s4_validate_datadir.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "kube-system",
+      "machineHostname": "ckad9999",
+      "question": "The certificates of the lab cluster's control plane were issued when the cluster was built, and the operations team wants them renewed ahead of schedule.\n\nOn `controlplane`, check the expiration of the certificates managed by `kubeadm`, then renew **all** of them with `kubeadm`. Renewed certificates are only picked up once the components that load them are restarted, so restart the control-plane components (API server, controller manager and scheduler) afterwards.\n\nWhen you are finished every kubeadm-managed certificate under `/etc/kubernetes/pki` and every kubeconfig under `/etc/kubernetes` must expire later than before, the certificate the API server presents on port `6443` must be the renewed one, and the cluster must be healthy.",
+      "concepts": [
+        "certificates",
+        "kubeadm",
+        "cluster-architecture"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The control plane certificates were renewed",
+          "verificationScriptFile": "q4_s1_validate_renewed.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The API server serves the renewed certificate",
+          "verificationScriptFile": "q4_s2_validate_served.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The kubeconfigs were renewed and the components restarted",
+          "verificationScriptFile": "q4_s3_validate_components.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "node-outage",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `sensor-relay` in the namespace `node-outage` is configured for `2` replicas that must run on the worker node `node02`. Its Pods are not running, and `kubectl get nodes` reports `node02` as `NotReady`.\n\nThe node is powered on and reachable with `ssh node02`. It is not used by any other question in this lab.\n\nInvestigate and bring the node back into service.\n\nWhen you are finished `node02` must report `Ready`, the kubelet on it must be running and enabled to start on boot, and both `sensor-relay` replicas must be `Running` on `node02`. Do not change the Deployment.",
+      "concepts": [
+        "troubleshooting",
+        "kubelet",
+        "nodes"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "node02 reports Ready",
+          "verificationScriptFile": "q5_s1_validate_node_ready.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "2",
+          "description": "The kubelet on node02 is active and enabled",
+          "verificationScriptFile": "q5_s2_validate_kubelet.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Both sensor-relay replicas are Running on node02",
+          "verificationScriptFile": "q5_s3_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "static-edge",
+      "machineHostname": "ckad9999",
+      "question": "Create a static Pod on the worker node `node01`, defined by a manifest in the directory the kubelet on that node watches for static Pod manifests.\n\nThe Pod must be named `edge-cache`, live in the namespace `static-edge` (which exists), and have a single container named `cache` running the image `nginx:1.27.4`. The container must publish its port `80` on the node as host port `8080`, so that `curl http://localhost:8080` on `node01` returns the nginx welcome page.\n\nYou can reach the node with `ssh node01`. Do not create the Pod through the API server.",
+      "concepts": [
+        "static-pods",
+        "kubelet",
+        "nodes"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The static Pod edge-cache is Running on node01 with the right container",
+          "verificationScriptFile": "q6_s1_validate_mirror_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The manifest lives in the kubelet's static Pod directory and port 8080 answers on the node",
+          "verificationScriptFile": "q6_s2_validate_manifest_port.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "kcfg-release",
+      "machineHostname": "ckad9999",
+      "question": "A kubeconfig file for the release automation is at `/tmp/exam/q7/release.kubeconfig` on this machine. It is meant to authenticate as the ServiceAccount `release-bot` in the namespace `kcfg-release` against the lab cluster, using a token that is already embedded in the file. The ServiceAccount and its permissions exist and are correct, and the token is valid.\n\nRunning `kubectl --kubeconfig /tmp/exam/q7/release.kubeconfig get pods -n kcfg-release` fails.\n\nRepair the file in place so that the command succeeds. Keep the context named `release@lab` and keep it as the current context. Do not change anything on the cluster. The kubeconfig this machine already uses for the lab cluster is your reference for how the cluster is reached.",
+      "concepts": [
+        "troubleshooting",
+        "kubeconfig",
+        "authentication"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The kubeconfig authenticates as release-bot",
+          "verificationScriptFile": "q7_s1_validate_identity.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Listing Pods in kcfg-release with the kubeconfig succeeds",
+          "verificationScriptFile": "q7_s2_validate_access.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The context release@lab is still the current context",
+          "verificationScriptFile": "q7_s3_validate_context.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "crd-freight",
+      "machineHostname": "ckad9999",
+      "question": "Create a CustomResourceDefinition for a namespaced resource `Shipment` in the API group `logistics.ck-x.io`, with a single version `v1` that is both served and used for storage, the plural name `shipments`, and the short name `shp`.\n\nIts OpenAPI schema must declare `spec.destination` (a string) and `spec.weightKg` (an integer with a minimum of `1`), and both must be required. The `kubectl get` output for the resource must include an additional printer column named `Destination` that shows `spec.destination`.\n\nThen create a `Shipment` named `crate-1042` in the namespace `crd-freight` with destination `rotterdam` and a weight of `480` kg.",
+      "concepts": [
+        "custom-resource-definitions",
+        "extensibility",
+        "api"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The CRD exists with the right group, names, version and scope",
+          "verificationScriptFile": "q8_s1_validate_crd.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The schema rejects invalid Shipments and accepts valid ones",
+          "verificationScriptFile": "q8_s2_validate_schema.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "crate-1042 exists and the printer column is defined",
+          "verificationScriptFile": "q8_s3_validate_instance.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "ds-fleet",
+      "machineHostname": "ckad9999",
+      "question": "Create a DaemonSet named `node-collector` in the namespace `ds-fleet` that runs one Pod on **every** node of the lab cluster, including the control plane node.\n\nThe Pod has a single container named `collector` running `busybox:1.36` with the command `sleep 86400`. It mounts the node directory `/var/log` read-only at `/host/log`. The Pods must be allowed onto the control plane node despite its scheduling restriction.\n\nWhen you are finished a `node-collector` Pod must be `Running` on the control plane node and on `node01`. (Other workers may be missing or unhealthy because of other questions in this lab; that is expected and not graded here.)",
+      "concepts": [
+        "daemonsets",
+        "tolerations",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "node-collector Pods are Running on the control plane and on node01",
+          "verificationScriptFile": "q9_s1_validate_placement.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The DaemonSet tolerates the control plane and mounts /var/log read-only",
+          "verificationScriptFile": "q9_s2_validate_spec.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "sts-ledger",
+      "machineHostname": "ckad9999",
+      "question": "In the namespace `sts-ledger`, create a headless Service named `ledger-db` on port `6379` selecting `app: ledger-db`, and a StatefulSet named `ledger-db` that uses it, with `2` replicas of a container named `db` running `redis:7.4-alpine` and listening on port `6379`.\n\nEach replica must get its own PersistentVolumeClaim from a volumeClaimTemplate named `data` that requests `100Mi` from the StorageClass `standard`, mounted at `/data`. The replicas must be created and started **in parallel** rather than one after the other.\n\nWhen you are finished both replicas must be ready, and the claims `data-ledger-db-0` and `data-ledger-db-1` must be `Bound`.",
+      "concepts": [
+        "statefulsets",
+        "headless-services",
+        "storage"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The StatefulSet has 2 ready replicas, started in parallel, behind the headless Service",
+          "verificationScriptFile": "q10_s1_validate_statefulset.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Each replica has its own Bound claim from the template, mounted at /data",
+          "verificationScriptFile": "q10_s2_validate_claims.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The Service is headless and selects the replicas",
+          "verificationScriptFile": "q10_s3_validate_service.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "batch-reports",
+      "machineHostname": "ckad9999",
+      "question": "Create a CronJob named `report-sweeper` in the namespace `batch-reports` that runs every `10` minutes. Each run is a Job whose Pod has one container named `sweeper` running `busybox:1.36` with the command `sh -c 'echo sweeping; sleep 5'`.\n\nA run must never overlap with a previous run that is still going. Keep the last `2` successful and the last `1` failed Jobs. A Job must give up after `1` retry and must not run longer than `90` seconds in total, and its Pods must never be restarted in place.\n\nThen trigger one run by hand, as a Job named `report-sweeper-manual` created **from** the CronJob, and let it complete.",
+      "concepts": [
+        "cronjobs",
+        "jobs",
+        "workloads"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The CronJob is configured as specified",
+          "verificationScriptFile": "q11_s1_validate_cronjob.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "report-sweeper-manual was created from the CronJob and completed",
+          "verificationScriptFile": "q11_s2_validate_manual_job.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "svc-telemetry",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `telemetry` in the namespace `svc-telemetry` runs Pods with two containers: `web`, which serves HTTP on the container port named `http`, and `exporter`, which serves metrics on the container port named `metrics`. Do not modify the Deployment.\n\nCreate a ClusterIP Service named `telemetry` in that namespace that exposes both: its port `80`, named `web`, must reach the `http` container port, and its port `9100`, named `metrics`, must reach the `metrics` container port. The Service must refer to the container ports **by name**, not by number.\n\nWhen you are finished both ports must have ready endpoints, and both must be reachable from a Pod in the namespace through the Service's cluster IP.",
+      "concepts": [
+        "services",
+        "networking",
+        "endpoints"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The Service exposes 80 and 9100 to the named container ports",
+          "verificationScriptFile": "q12_s1_validate_service.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Both ports have ready endpoints and answer through the cluster IP",
+          "verificationScriptFile": "q12_s2_validate_reachable.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "namespace": "dns-alias",
+      "machineHostname": "ckad9999",
+      "question": "Applications in the lab cluster still use the legacy hostname `ledger.corp.internal` to reach the ledger service. That service now runs in the cluster as the Service `ledger` in the namespace `dns-alias`.\n\nConfigure the cluster's DNS so that any Pod in the cluster resolving `ledger.corp.internal` receives the cluster IP of that Service, without creating additional Services and without changing any Pod's DNS settings. Resolution of every other name must keep working.\n\nA Pod named `resolver` exists in the namespace `dns-alias` to test from: `kubectl -n dns-alias exec resolver -- nslookup ledger.corp.internal` must answer with the Service's cluster IP.",
+      "concepts": [
+        "coredns",
+        "dns",
+        "networking"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ledger.corp.internal resolves to the ledger Service's cluster IP",
+          "verificationScriptFile": "q13_s1_validate_alias.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "2",
+          "description": "Cluster DNS still resolves other names",
+          "verificationScriptFile": "q13_s2_validate_dns_intact.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "namespace": "stor-bulk",
+      "machineHostname": "ckad9999",
+      "question": "Create a StorageClass named `bulk-retain` that uses the provisioner `rancher.io/local-path`, keeps volumes after their claim is deleted, and delays binding until a Pod uses the claim. It must not become the default StorageClass.\n\nIn the namespace `stor-bulk`, create a PersistentVolumeClaim named `bulk-data` requesting `500Mi` with `ReadWriteOnce` access from that StorageClass, and a Pod named `bulk-writer` with one container named `writer` running `busybox:1.36` with the command `sh -c 'date > /bulk/started; sleep 86400'`, mounting the claim at `/bulk`.\n\nWhen you are finished the Pod must be `Running`, the claim must be `Bound`, and the volume it is bound to must have the reclaim policy `Retain`.",
+      "concepts": [
+        "storage",
+        "storage-classes",
+        "persistent-volume-claims"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The StorageClass is configured as specified",
+          "verificationScriptFile": "q14_s1_validate_storageclass.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The claim is Bound to a Retain volume and the Pod is Running",
+          "verificationScriptFile": "q14_s2_validate_claim_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "namespace": "ts-storage",
+      "machineHostname": "ckad9999",
+      "question": "The Pod `archive-reader` in the namespace `ts-storage` never starts: it stays `Pending`, and the PersistentVolumeClaim `archive-claim` that it mounts stays `Pending` too.\n\nA PersistentVolume named `archive-pv` was provisioned by the storage team for exactly this claim; it must not be modified or replaced. The claim must keep its name, and the Pod must keep mounting it.\n\nInvestigate and get the Pod running.\n\nWhen you are finished `archive-claim` must be `Bound` to `archive-pv` and `archive-reader` must be `Running`.",
+      "concepts": [
+        "troubleshooting",
+        "storage",
+        "persistent-volumes"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "archive-claim is Bound to archive-pv",
+          "verificationScriptFile": "q15_s1_validate_bound.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "archive-reader is Running and the PV was not modified",
+          "verificationScriptFile": "q15_s2_validate_pod_pv.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "namespace": "ts-memory",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `render-worker` in the namespace `ts-memory` has `1` replica. Its Pod never stays up: the container is killed and restarted over and over.\n\nThe application loads a fixed-size working set into memory when it starts and then idles. The platform team has approved a memory limit of `128Mi` for it; its resource requests, image and command must not change.\n\nInvestigate and make the Deployment stable.\n\nWhen you are finished the replica must be `Running` and stay running without further restarts, and the container must declare a memory limit of exactly `128Mi`.",
+      "concepts": [
+        "troubleshooting",
+        "resource-management",
+        "pod-lifecycle"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "render-worker is Running and stable",
+          "verificationScriptFile": "q16_s1_validate_stable.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The container has a 128Mi limit and its requests, image and command are unchanged",
+          "verificationScriptFile": "q16_s2_validate_resources.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    }
+  ]
+}

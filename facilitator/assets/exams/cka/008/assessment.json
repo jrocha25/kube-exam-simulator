@@ -1,0 +1,468 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "np-baseline",
+      "machineHostname": "ckad9999",
+      "question": "The `np-baseline` namespace runs a web server Pod named `web` (label `app=web`, serving HTTP on port `80`) and a client Pod named `client`. No NetworkPolicy exists in the namespace yet, so every Pod can reach every other Pod.\n\nCreate a NetworkPolicy named `default-deny-ingress` in the `np-baseline` namespace that denies all incoming traffic to every Pod in the namespace.\n\nThe policy must apply to every Pod, must restrict `Ingress` only, and must not permit any traffic at all.\n\nDo not delete or modify any existing Pod.",
+      "concepts": [
+        "network-policies",
+        "default-deny",
+        "ingress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "NetworkPolicy default-deny-ingress exists",
+          "verificationScriptFile": "q1_s1_validate_policy_exists.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The policy selects every Pod and permits nothing",
+          "verificationScriptFile": "q1_s2_validate_policy_shape.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "Pod client can no longer reach web",
+          "verificationScriptFile": "q1_s3_validate_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "np-tiers",
+      "machineHostname": "ckad9999",
+      "question": "The `np-tiers` namespace already carries a NetworkPolicy named `default-deny` that denies all ingress to every Pod. It contains three Pods: `api` (label `app=api`, serving HTTP on port `80`), `frontend` (label `role=frontend`) and `scanner` (label `role=scanner`).\n\nCreate a NetworkPolicy named `api-allow-frontend` in the `np-tiers` namespace that allows Pods labelled `role=frontend` to reach the Pods labelled `app=api` on TCP port `80`.\n\nWhen you are finished `frontend` must be able to reach `api` on port `80`, and `scanner` must not.\n\nDo not modify or delete the `default-deny` policy, and do not change any Pod label.",
+      "concepts": [
+        "network-policies",
+        "pod-selectors",
+        "ingress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "api-allow-frontend applies Ingress rules to the app=api Pods",
+          "verificationScriptFile": "q2_s1_validate_policy.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "Pod frontend can reach api on port 80",
+          "verificationScriptFile": "q2_s2_validate_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "Pod scanner is denied access to api",
+          "verificationScriptFile": "q2_s3_validate_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "np-crossns",
+      "machineHostname": "ckad9999",
+      "question": "The `np-crossns` namespace runs the Pod `payments` (label `app=payments`, serving HTTP on port `80`) and already carries a NetworkPolicy named `default-deny` that denies all ingress.\n\nTwo other namespaces each contain a Pod named `probe`: `np-crossns-monitor`, which is labelled `purpose=monitoring`, and `np-crossns-dev`, which carries no labels of its own.\n\nCreate a NetworkPolicy named `payments-ingress` in the `np-crossns` namespace that allows traffic to `payments` on TCP port `80` from Pods running in any namespace labelled `purpose=monitoring`, and from nowhere else.\n\nDo not modify the `default-deny` policy, and do not add or remove any namespace label.",
+      "concepts": [
+        "network-policies",
+        "namespace-selectors",
+        "ingress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "payments-ingress applies Ingress rules to the app=payments Pods",
+          "verificationScriptFile": "q3_s1_validate_policy.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "The probe Pod in the monitoring namespace can reach payments",
+          "verificationScriptFile": "q3_s2_validate_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The probe Pod in the unlabelled namespace is denied",
+          "verificationScriptFile": "q3_s3_validate_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "np-combined",
+      "machineHostname": "ckad9999",
+      "question": "The `np-combined` namespace runs the Pod `ledger` (label `app=ledger`, serving HTTP on port `80`) and already carries a NetworkPolicy named `default-deny` that denies all ingress.\n\nThree Pods elsewhere may try to reach it:\n\n- `collector` (label `app=collector`) in `np-combined-platform`, a namespace labelled `tier=platform`\n- `auditor` (label `app=auditor`) in `np-combined-platform`\n- `collector` (label `app=collector`) in `np-combined-edge`, a namespace with no labels of its own\n\nCreate a NetworkPolicy named `ledger-ingress` in the `np-combined` namespace that allows traffic to `ledger` on TCP port `80` only from Pods that are labelled `app=collector` **and** are running in a namespace labelled `tier=platform`.\n\nOf the three Pods listed above, only the first may reach `ledger`.\n\nDo not modify the `default-deny` policy, and do not change any Pod or namespace label.",
+      "concepts": [
+        "network-policies",
+        "combining-selectors",
+        "ingress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "The collector Pod in the platform namespace can reach ledger",
+          "verificationScriptFile": "q4_s1_validate_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The auditor Pod in the platform namespace is denied",
+          "verificationScriptFile": "q4_s2_validate_denied_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The collector Pod in the unlabelled namespace is denied",
+          "verificationScriptFile": "q4_s3_validate_denied_namespace.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "np-egress",
+      "machineHostname": "ckad9999",
+      "question": "The `np-egress` namespace runs three Pods: `orders` (label `app=orders`), `catalog` (label `app=catalog`, serving HTTP on port `80`) and `reports` (label `app=reports`, serving HTTP on port `80`). The Services `catalog` and `reports` point at the last two.\n\nCreate a NetworkPolicy named `orders-egress` in the `np-egress` namespace that restricts outgoing traffic from the Pods labelled `app=orders` so that they may reach only:\n\n- the Pods labelled `app=catalog`, on TCP port `80`\n- cluster DNS, which runs in the `kube-system` namespace and answers on port `53` over both `UDP` and `TCP`\n\nThe policy must restrict `Egress` only, and must not contain a rule that permits all outgoing traffic.\n\nWhen you are finished `orders` must be able to resolve `catalog.np-egress.svc.cluster.local` and reach `catalog` by that name, and must not be able to reach `reports`.\n\nDo not change any Pod or Service.",
+      "concepts": [
+        "network-policies",
+        "egress",
+        "dns"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "orders-egress restricts egress and allows DNS over UDP and TCP",
+          "verificationScriptFile": "q5_s1_validate_policy_shape.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Pod orders resolves catalog.np-egress.svc.cluster.local",
+          "verificationScriptFile": "q5_s2_validate_dns.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Pod orders reaches catalog by name on port 80",
+          "verificationScriptFile": "q5_s3_validate_catalog.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "Pod orders is denied egress to reports",
+          "verificationScriptFile": "q5_s4_validate_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "np-external",
+      "machineHostname": "ckad9999",
+      "question": "The `np-external` namespace runs the Pod `gateway` (label `app=gateway`). It calls a third-party payment provider over HTTPS on the public internet.\n\nCluster policy requires that the gateway may open outbound connections to any address on the internet on TCP port `443`, but must never be able to reach:\n\n- the cluster Pod network, `10.42.0.0/16`\n- the cloud instance metadata endpoint, `169.254.169.254/32`\n\nCreate a NetworkPolicy named `gateway-egress` in the `np-external` namespace that enforces exactly that.\n\nThe policy must apply to the Pods labelled `app=gateway`, must restrict `Egress` only, and must express the whole requirement in a single egress rule with a single peer and a single port. No rule in the policy may re-open a path to either excluded range.\n\nDo not change the `gateway` Pod.",
+      "concepts": [
+        "network-policies",
+        "ip-blocks",
+        "egress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "gateway-egress applies Egress rules to the app=gateway Pods",
+          "verificationScriptFile": "q6_s1_validate_policy.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "One rule allows TCP 443 to 0.0.0.0/0 while excluding both ranges",
+          "verificationScriptFile": "q6_s2_validate_ipblock.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "3",
+          "description": "No rule re-opens a path to the excluded ranges",
+          "verificationScriptFile": "q6_s3_validate_no_wider_path.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "np-additive",
+      "machineHostname": "ckad9999",
+      "question": "The `np-additive` namespace runs the Pod `reports` (label `app=reports`, serving HTTP on port `80`) and two clients: `frontend` (label `role=frontend`) and `backup` (label `role=backup`).\n\nA NetworkPolicy named `allow-frontend` already exists. It belongs to the application team, is under their change control, and must be left exactly as it is.\n\nThe backup team now needs `backup` to reach `reports` on TCP port `80` as well.\n\nCreate a NetworkPolicy named `allow-backup` in the `np-additive` namespace that grants that access.\n\nWhen you are finished both `frontend` and `backup` must be able to reach `reports` on port `80`, and `allow-frontend` must still be exactly the policy it is now.\n\nDo not modify or delete `allow-frontend`, and do not change any Pod label.",
+      "concepts": [
+        "network-policies",
+        "additive-policies",
+        "ingress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "allow-frontend is unchanged",
+          "verificationScriptFile": "q7_s1_validate_original_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "allow-backup adds a second set of Ingress rules for app=reports",
+          "verificationScriptFile": "q7_s2_validate_new_policy.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Pod backup can reach reports on port 80",
+          "verificationScriptFile": "q7_s3_validate_backup_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "4",
+          "description": "Pod frontend still reaches reports on port 80",
+          "verificationScriptFile": "q7_s4_validate_frontend_still_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "np-ports",
+      "machineHostname": "ckad9999",
+      "question": "The `np-ports` namespace runs the Pod `payments` (label `app=payments`). It serves the application on TCP port `80` and a metrics endpoint on TCP port `9090`. Three clients share the namespace: `frontend` (label `role=frontend`), `prometheus` (label `role=monitoring`) and `batch` (label `role=batch`).\n\nCreate a NetworkPolicy named `payments-ingress` in the `np-ports` namespace that applies to the Pods labelled `app=payments` and allows:\n\n- TCP port `80` from Pods whose `role` label is either `frontend` or `monitoring`\n- TCP port `9090` from Pods labelled `role=monitoring`\n\nThe two-value client set on port `80` must be written as a single `matchExpressions` rule using the `In` operator over the `role` key, listing exactly those two values, rather than as two separate peers.\n\nWhen you are finished `frontend` must reach port `80` but not `9090`, `prometheus` must reach `9090`, and `batch` must reach neither.\n\nDo not change any Pod label.",
+      "concepts": [
+        "network-policies",
+        "match-expressions",
+        "ports"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "payments-ingress uses a matchExpressions In rule and a separate 9090 rule",
+          "verificationScriptFile": "q8_s1_validate_policy_shape.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Pod frontend can reach payments on port 80",
+          "verificationScriptFile": "q8_s2_validate_frontend_http.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Pod frontend is denied port 9090",
+          "verificationScriptFile": "q8_s3_validate_frontend_metrics_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "Pod prometheus can reach payments on port 9090",
+          "verificationScriptFile": "q8_s4_validate_monitoring_metrics.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "5",
+          "description": "Pod batch is denied both ports",
+          "verificationScriptFile": "q8_s5_validate_batch_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "np-ts-selector",
+      "machineHostname": "ckad9999",
+      "question": "The `checkout` Deployment in the `np-ts-selector-clients` namespace can no longer reach the `inventory` Pod in the `np-ts-selector` namespace. Every request times out.\n\n`inventory` (label `app=inventory`) serves HTTP on port `80` and sits behind the `inventory` Service. A NetworkPolicy named `inventory-ingress` was written to permit exactly the `checkout` Pods and nothing else, and it is still in place.\n\nThe `np-ts-selector-clients` namespace is labelled `access=inventory` and also runs an unrelated Pod named `scanner` (label `app=scanner`), which must never be able to reach `inventory`.\n\nInvestigate and restore the intended access.\n\nWhen you are finished the `checkout` Pods must be able to reach `inventory` on port `80`, `scanner` must not, the `checkout` Deployment must still declare `2` replicas, and `inventory-ingress` must still exist and still apply to the Pods labelled `app=inventory`.\n\nDo not change any Pod or namespace label.",
+      "concepts": [
+        "troubleshooting",
+        "network-policies",
+        "combining-selectors"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "inventory-ingress and the checkout Deployment are intact",
+          "verificationScriptFile": "q9_s1_validate_policy_kept.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "A checkout Pod can reach inventory on port 80",
+          "verificationScriptFile": "q9_s2_validate_checkout_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 5
+        },
+        {
+          "id": "3",
+          "description": "Pod scanner remains denied while checkout works",
+          "verificationScriptFile": "q9_s3_validate_scanner_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "np-ts-inert",
+      "machineHostname": "ckad9999",
+      "question": "A NetworkPolicy named `vault-isolation` was added to the `np-ts-inert` namespace to lock down the `vault` Pod, but nothing changed: every Pod in the namespace can still reach it.\n\n`vault` (label `app=vault`) serves HTTP on port `80` and sits behind the `vault` Service. The namespace also runs `auditor` (label `role=auditor`), which is authorised to reach `vault` on port `80`, and `intruder` (label `role=intruder`), which is not.\n\nInvestigate and make the policy do what it was written to do.\n\nWhen you are finished `auditor` must still be able to reach `vault` on port `80`, `intruder` must not, and `vault-isolation` must still exist.\n\nDo not delete the policy, and do not change the labels of any Pod — the `vault` Service selects its Pod by label.",
+      "concepts": [
+        "troubleshooting",
+        "network-policies",
+        "pod-selectors"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "vault-isolation now selects the vault Pod, whose labels are unchanged",
+          "verificationScriptFile": "q10_s1_validate_policy_selects_vault.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Pod auditor keeps its access to vault",
+          "verificationScriptFile": "q10_s2_validate_auditor_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        },
+        {
+          "id": "3",
+          "description": "Pod intruder is denied access to vault",
+          "verificationScriptFile": "q10_s3_validate_intruder_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "np-ts-egress",
+      "machineHostname": "ckad9999",
+      "question": "The Pod `sync-agent` in the `np-ts-egress` namespace cannot reach the `archive` Service in the `np-ts-egress-store` namespace. Every request fails.\n\n`archive` (label `app=archive`) serves HTTP on port `80` and already carries a NetworkPolicy named `archive-ingress` that admits the `np-ts-egress` namespace on that port. That policy and the `archive` workload belong to the storage team and must not be touched.\n\nA third namespace, `np-ts-egress-decoy`, runs a Pod named `secrets-api` that `sync-agent` must never be able to reach.\n\nInvestigate and restore the intended access.\n\nWhen you are finished `sync-agent` must be able to reach `archive.np-ts-egress-store.svc.cluster.local` on port `80`, and must still be unable to reach anything in `np-ts-egress-decoy`.\n\nDo not modify or delete `archive-ingress`, and do not change the `archive` Pod.",
+      "concepts": [
+        "troubleshooting",
+        "network-policies",
+        "egress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "sync-agent reaches archive by its fully qualified name",
+          "verificationScriptFile": "q11_s1_validate_archive_reachable.sh",
+          "expectedOutput": "0",
+          "weightage": 5
+        },
+        {
+          "id": "2",
+          "description": "archive-ingress and the archive workload are unchanged",
+          "verificationScriptFile": "q11_s2_validate_archive_policy_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "sync-agent still cannot reach the decoy namespace",
+          "verificationScriptFile": "q11_s3_validate_decoy_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 4
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "np-design",
+      "machineHostname": "ckad9999",
+      "question": "The `np-design` namespace runs a three-tier application as three Pods: `web` (label `tier=web`, serving port `80`), `api` (label `tier=api`, serving port `8080`) and `db` (label `tier=db`, serving port `5432`). Each sits behind a Service of the same name. The `np-design-clients` namespace, labelled `role=edge`, runs `ingress-gw` (label `role=gateway`) and `rogue` (label `role=rogue`).\n\nThe `np-design` namespace currently has no NetworkPolicy at all. Design and apply whatever policies are needed there so that exactly the following holds:\n\n- `ingress-gw` may reach the web tier on TCP `80`\n- the web tier may reach the api tier on TCP `8080`\n- the api tier may reach the db tier on TCP `5432`\n- the web tier may not reach the db tier\n- `ingress-gw` may not reach the api tier or the db tier\n- `rogue` may reach nothing in `np-design`\n- every tier may resolve names through cluster DNS\n\nBoth directions must be restricted: each tier's outgoing traffic must be limited to what the list above allows, and the tiers address each other by Service name.\n\nNo policy you create may contain a rule that permits all traffic, and none may name `0.0.0.0/0`.\n\nYou may create as many policies as you like, with names of your choosing. Do not change any Pod, Service, or label.",
+      "concepts": [
+        "network-policies",
+        "policy-design",
+        "egress"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ingress-gw can reach the web tier on port 80",
+          "verificationScriptFile": "q12_s1_validate_gateway_web.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The web tier can reach the api tier by name on port 8080",
+          "verificationScriptFile": "q12_s2_validate_web_api.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The api tier can reach the db tier by name on port 5432",
+          "verificationScriptFile": "q12_s3_validate_api_db.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The web tier is denied direct access to the db tier",
+          "verificationScriptFile": "q12_s4_validate_web_db_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "5",
+          "description": "ingress-gw is denied access to the api tier",
+          "verificationScriptFile": "q12_s5_validate_gateway_api_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "6",
+          "description": "Pod rogue is denied access to the web tier",
+          "verificationScriptFile": "q12_s6_validate_rogue_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "7",
+          "description": "No policy in np-design contains a blanket allow rule",
+          "verificationScriptFile": "q12_s7_validate_no_allow_all.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "lab": "cka-010",
+  "workerNodes": 3,
+  "clusterType": "kind",
+  "auxCluster": "kind",
+  "auxNodeImage": "kindest/node:v1.33.12@sha256:3f5c8443c620245e4d355cfe09e96a91ead32ceaa569d3f1ca9edf0cb2fe2ff4",
+  "answers": "assets/exams/cka/010/answers.md",
+  "questions": "assessment.json",
+  "totalMarks": 100,
+  "lowScore": 60,
+  "mediumScore": 75,
+  "highScore": 85
+}

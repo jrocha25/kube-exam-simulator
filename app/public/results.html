@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Results - CK-X Simulator</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/results.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+
+        <!-- Action buttons moved to top -->
+        <div class="results-actions">
+            <button id="dashboardBtn" class="btn btn-secondary">
+                <i class="fas fa-home me-2"></i>Dashboard
+            </button>
+            <button id="currentExamBtn" class="btn btn-info">
+                <i class="fas fa-tasks me-2"></i>Current Exam
+            </button>
+            <button id="viewAnswersBtn" class="btn btn-success">
+                <i class="fas fa-check-square me-2"></i>View Answers
+            </button>
+            <button id="reEvaluateBtn" class="btn btn-primary">
+                <i class="fas fa-sync-alt me-2"></i>Re-evaluate Exam
+            </button>
+            <button id="terminateBtn" class="btn btn-danger">
+                <i class="fas fa-power-off me-2"></i>Terminate Session
+            </button>
+            <a href="https://forms.gle/Dac9ALQnQb2dH1mw8" target="_blank" class="btn btn-outline-primary" id="feedbackBtn">
+                <i class="fas fa-comment-dots me-2"></i>Give Feedback
+            </a>
+        </div>
+
+        <main class="results-container">
+            <!-- Loading state -->
+            <div id="pageLoader" class="page-loader">
+                <div class="spinner"></div>
+                <p id="loaderMessage">Loading exam results...</p>
+            </div>
+
+            <!-- Error message -->
+            <div id="errorMessage" class="error-message" style="display: none;">
+                <i class="fas fa-exclamation-circle"></i>
+                <p id="errorText">An error occurred while loading the results.</p>
+                <button id="retryButton" class="button">Retry</button>
+            </div>
+
+            <!-- Results content -->
+            <div id="resultsContent" class="results-content" style="display: none;">
+                <div class="results-header">
+                    <h2>Exam Results</h2>
+                    <div class="exam-info">
+                        <p id="examId">Exam ID: Loading...</p>
+                        <p id="completedAt">Completed: Loading...</p>
+                    </div>
+                </div>
+
+                <div class="results-summary">
+                    <div class="score-display">
+                        <h3>Solved subtasks:</h3>
+                        <div class="score-box">
+                            <span id="totalScore">0</span> / <span id="totalPossibleScore">0</span>
+                        </div>
+                    </div>
+                    <div class="rank-display">
+                        <div id="rankBadge" class="rank-badge">
+                            <span id="rankText">Score</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="questionsContainer" class="questions-container">
+                    <!-- Questions will be added here dynamically -->
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <p style="text-align: center;">&copy; <span id="currentYear"></span> CK-X Simulator.</p>
+        </footer>
+    </div>
+
+    <script src="/js/results.js"></script>
+    <script>
+        // Set the current year for copyright
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+    </script>
+    
+    <!-- Terminate Session Confirmation Modal -->
+    <div id="terminateModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4>Terminate Session</h4>
+                <button id="closeModalBtn" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to terminate this exam session?</p>
+                <p>This will <strong>clear all your progress</strong> and your <strong>environment will be cleaned up</strong> immediately.</p>
+                <p class="warning-text">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelTerminateBtn" class="btn btn-secondary">Cancel</button>
+                <button id="confirmTerminateBtn" class="btn btn-danger">
+                    <i class="fas fa-power-off me-2"></i> Terminate Session
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

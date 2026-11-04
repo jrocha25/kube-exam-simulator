@@ -1,0 +1,484 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #333;
+    height: 100vh;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    color: #333;
+    overflow: hidden; /* Prevent body scrolling */
+}
+.header {
+    background-color: #333;
+    color: white;
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #444;
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+.header-title-section {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Space between title and timer */
+}
+.header-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin: 0;
+}
+.header-controls {
+    display: flex;
+    align-items: center;
+}
+.timer {
+    padding: 0.25rem 0.5rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 0.25rem;
+    color: #fff;
+    font-weight: 500;
+    transition: background-color 0.3s, color 0.3s;
+}
+.btn-custom {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 0.35rem 0.75rem;
+    margin-left: 0.5rem;
+    border-radius: 0.25rem;
+}
+.main-container {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 49px); /* Subtract header height */
+    max-height: calc(100vh - 49px);
+    position: relative;
+    overflow: hidden; /* Prevent scrollbars during resize */
+}
+.question-panel {
+    width: 30%;
+    min-width: 200px;
+    max-width: 70%; /* Prevent panel from taking too much space */
+    background-color: white;
+    overflow-y: auto;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.05s ease; /* Smoother transitions when not dragging */
+    will-change: width; /* Optimize for animations */
+}
+.vnc-panel {
+    flex: 1;
+    background-color: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    min-width: 300px; /* Ensure VNC panel has enough space */
+    overflow: hidden; /* Prevent overflow issues */
+    max-height: 100%;
+}
+.question-nav {
+    display: flex;
+    padding: 0.5rem;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+}
+.nav-arrow {
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.nav-arrow-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #e9ecef;
+}
+.question-select {
+    flex: 1;
+    margin: 0 0.5rem;
+}
+.question-content {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    transition: opacity 0.2s ease; /* Add smooth transition */
+    max-height: calc(100vh - 95px); /* Header + Question Nav */
+}
+.info-box {
+    background-color: #e3f2fd;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin: 1rem 0;
+    display: flex;
+    align-items: flex-start;
+}
+.info-icon {
+    color: #0d6efd;
+    font-size: 1.25rem;
+    margin-right: 0.75rem;
+}
+.highlight {
+    color: #d63384;
+    font-weight: 500;
+}
+.code {
+    font-family: monospace;
+    background-color: #f8f9fa;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+}
+.terminal-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    max-height: 100%;
+    overflow: hidden;
+}
+.terminal-iframe {
+    flex: 1;
+    border: none;
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    max-height: 100%;
+}
+.terminal-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+    display: flex;
+    gap: 5px;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+.terminal-controls:hover {
+    opacity: 1;
+}
+.terminal-controls .btn {
+    backdrop-filter: blur(4px);
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+.loader {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+ul.requirements {
+    padding-left: 1.5rem;
+}
+ul.requirements li {
+    margin-bottom: 0.5rem;
+}
+.connection-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    font-size: 12px;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.5s;
+}
+.connection-status.show {
+    opacity: 1;
+}
+.panel-divider {
+    width: 8px;
+    height: 100%;
+    background-color: #ddd;
+    cursor: col-resize;
+    position: relative;
+    transition: background-color 0.2s ease;
+    z-index: 10;
+    flex-shrink: 0;
+}
+.panel-divider:hover, .panel-divider.dragging {
+    background-color: #1e88e5;
+}
+.panel-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 30px;
+    background-color: #999;
+    border-radius: 2px;
+}
+.panel-divider:hover::after, .panel-divider.dragging::after {
+    background-color: #fff;
+}
+/* Divider hint and tooltip */
+.divider-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none; /* Allow events to pass through */
+    z-index: 11;
+    width: 100px;
+}
+.panel-divider:hover .divider-hint {
+    opacity: 1;
+}
+.divider-arrows {
+    font-size: 16px;
+    color: white;
+    margin-bottom: 5px;
+}
+.divider-tooltip {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    position: absolute;
+    top: 25px;
+}
+/* Prevent text selection during dragging */
+.no-select {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+/* Add a class for content transitions */
+.content-fade {
+    opacity: 0.6;
+}
+/* Question transition indicators */
+.question-transition {
+    position: relative;
+}
+.question-transition::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background-color: #1e88e5;
+    animation: pulseIndicator 1s ease-in-out;
+}
+@keyframes pulseIndicator {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+}
+/* Inline code highlighting for text in single quotes */
+.inline-code {
+    background-color: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    padding: 2px 4px;
+    color: #d63384;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.inline-code:hover {
+    background-color: rgba(0, 0, 0, 0.12);
+}
+
+/* Improved spacing for question content */
+.question-body {
+    padding: 10px 0;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.question-body p {
+    margin-bottom: 16px;
+    line-height: 1.6;
+}
+
+.question-body ul, 
+.question-body ol {
+    margin-bottom: 16px;
+    line-height: 1.5;
+    padding-left: 25px;
+}
+
+.question-body li {
+    margin-bottom: 8px;
+}
+
+.question-body .info-box {
+    background-color: #f5f9ff;
+    border-left: 4px solid #3498db;
+    padding: 12px 15px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.question-body .requirements {
+    margin: 16px 0;
+}
+
+.ssh-terminal-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background-color: #1E1E1E;
+    padding: 5px;
+    border-radius: 6px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    max-height: 100%;
+    width: 100%; /* Ensure full width */
+    max-width: 100%; /* Prevent overflow */
+    box-sizing: border-box; /* Include padding in width calculation */
+    overflow: hidden;
+}
+
+/* Remove Terminal window bar */
+.ssh-terminal-container::before {
+    display: none;
+}
+
+/* Remove Window title */
+.ssh-terminal-container::after {
+    display: none;
+}
+
+/* Remove Terminal window controls (macOS style) */
+.ssh-terminal-container .terminal-controls::before {
+    display: none;
+}
+
+.terminal {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    background-color: #1E1E1E;
+    color: #F8F8F8;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace;
+    padding: 10px;
+    overflow: auto;
+    border-radius: 6px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+    max-height: 100%;
+    max-width: 100%; /* Prevent overflow */
+    box-sizing: border-box; /* Include padding in width calculation */
+}
+
+/* Hide scrollbar but keep functionality */
+.terminal::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.terminal {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* Add to existing terminal-container styles */
+.terminal-container, .ssh-terminal-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+/* Make question action buttons stick to bottom */
+.action-buttons-container {
+    position: sticky;
+    bottom: 0;
+    background-color: white;
+    padding: 10px 0;
+    border-top: 1px solid #ddd;
+    z-index: 10;
+}
+
+.timer-warning {
+    background-color: rgba(220, 53, 69, 0.25);
+    color: #ffc107;
+    animation: pulseTimer 1.5s infinite alternate;
+}
+
+@keyframes pulseTimer {
+    from { background-color: rgba(220, 53, 69, 0.25); }
+    to { background-color: rgba(220, 53, 69, 0.5); }
+}
+
+/* Toast container customization */
+.toast-container {
+    z-index: 9999;
+}
+
+/* Toast customization */
+.toast {
+    min-width: 250px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: none;
+    opacity: 1 !important; /* Make sure toasts are fully visible */
+}
+
+.toast-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toast.bg-warning {
+    border-left: 4px solid #ffc107;
+}
+
+.toast.bg-danger {
+    border-left: 4px solid #dc3545;
+}
+
+.review-mode-badge {
+    background-color: #6c757d;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-left: 10px;
+    display: inline-block;
+    vertical-align: middle;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+} 

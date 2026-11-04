@@ -1,0 +1,239 @@
+#!/bin/sh
+exec >> /proc/1/fd/1 2>&1
+# ===============================================================================
+#   Cluster Creation
+#   Arguments: NUM_WORKERS CLUSTER_NAME [CLUSTER_TYPE] [ROLE]
+#   example command to run this script  ./env-setup 3 cluster1 k3d
+#
+#   CLUSTER_TYPE selects the cluster flavour, and comes from "clusterType" in a
+#   lab's config.json:
+#
+#     k3d  (default) -- k3s in docker. Fast, ships a NetworkPolicy controller and
+#                       the Gateway API, but the control plane is one embedded
+#                       process: no kubeadm, no static pods, no node shell.
+#     kind           -- kubeadm-bootstrapped nodes. Real /etc/kubernetes/manifests,
+#                       real crictl, real kubelet units and SSH into the nodes.
+#                       Needed by labs that break and repair the control plane.
+#
+#   Labs written before the split carry no clusterType, so the default has to stay
+#   k3d and the k3d path below has to stay byte-for-byte what it always was.
+#
+#   ROLE is "primary" (the default) or "aux". A lab that carries "auxCluster" in
+#   its config.json gets a second, single-node cluster built alongside the first,
+#   so a question may break something cluster-wide without every other question
+#   having to be written around the damage. Only the kubeadm flavour implements
+#   it: the k3d path pins its api server to 6443 and writes one fixed kubeconfig
+#   path, and parameterising that would mean touching the one code path every
+#   pre-existing lab depends on.
+#
+#   NODE_IMAGE_OVERRIDE is an optional kind node image for the aux role only, from
+#   "auxNodeImage" in the lab's config.json. It lets the auxiliary cluster start a
+#   Kubernetes minor behind the image pinned in this image, so that a question can
+#   upgrade it with kubeadm. Empty means the pinned image; it is never applied to
+#   the primary, which every other question in a lab runs on.
+# ===============================================================================
+
+NUM_WORKERS=${1:-0}  # Default to 1 worker if not provided
+CLUSTER_NAME=${2:-cluster}
+CLUSTER_TYPE=${3:-k3d}
+ROLE=${4:-primary}
+NODE_IMAGE_OVERRIDE=${5:-""}
+
+# This script is invoked over SSH, which does not inherit the image's ENV, so the
+# pinned versions are read back from the file written at build time.
+if [ -f /etc/ck-x-versions ]; then
+    . /etc/ck-x-versions
+fi
+K3S_VERSION=${K3S_VERSION:-v1.34.10-k3s1}
+K3D_VERSION=${K3D_VERSION:-v5.9.0}
+
+# The kubeadm flavour lives in its own script rather than as a branch threaded
+# through this one -- the two share nothing beyond the kubeconfig rewrite, and
+# keeping them apart means the k3d path used by every existing lab is untouched.
+if [ "$CLUSTER_TYPE" = "kind" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | Cluster type: kind (kubeadm), role: $ROLE"
+    exec /usr/local/bin/env-setup-kind "$NUM_WORKERS" "$CLUSTER_NAME" "$ROLE" "$NODE_IMAGE_OVERRIDE"
+fi
+
+# Refuse rather than silently building a second k3d cluster that would collide with
+# the first on port 6443 and overwrite its kubeconfig -- the kind of failure that
+# only surfaces later, as a primary cluster that has quietly become unreachable.
+if [ "$ROLE" = "aux" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | ERROR: an auxiliary cluster must be of type kind, not '$CLUSTER_TYPE'"
+    exit 1
+fi
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') | Cluster type: k3d (k3s)"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') | Using k3s ${K3S_VERSION} via k3d ${K3D_VERSION}"
+
+# Check if k3d is installed, if not install it
+if ! command -v k3d &> /dev/null; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | k3d not found. Attempting installation..."
+    
+    # Retry k3d installation up to 5 times
+    INSTALL_ATTEMPTS=0
+    while [ $INSTALL_ATTEMPTS -lt 99999 ]; do
+        INSTALL_ATTEMPTS=$((INSTALL_ATTEMPTS+1))
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | Installation attempt $INSTALL_ATTEMPTS"
+        
+        # Use the same installation method as in entrypoint.sh
+        TAG=${K3D_VERSION} bash /usr/local/bin/k3d-install.sh
+        
+        # Check if installation was successful
+        if command -v k3d &> /dev/null; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') | k3d successfully installed"
+            break
+        else
+            echo "$(date '+%Y-%m-%d %H:%M:%S') | k3d installation failed. Retrying in 10 seconds..."
+            sleep 10
+        fi
+    done
+    
+    # If k3d still not installed after 5 attempts, exit with error
+    if ! command -v k3d &> /dev/null; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | ERROR: Failed to install k3d after 5 attempts"
+        exit 1
+    fi
+fi
+
+
+# Delete cluster config if exists
+if [ -f "k3d-config.yaml" ]; then  
+    echo "k3d-config.yaml already exists, deleting it"
+    rm -f k3d-config.yaml
+fi
+
+# ===============================================================================
+#   Traefik configuration
+#   k3s bundles Traefik v3 and the standard-channel Gateway API CRDs, but the
+#   Gateway provider is off by default. Enabling it gives candidates a real
+#   GatewayClass ("traefik") so Gateway/HTTPRoute resources are actually
+#   programmed instead of sitting at "Waiting for controller".
+#
+#   Traefik only programs a listener whose port matches one of its entryPoint
+#   ports, and the chart's "web" entryPoint defaults to 8000. Exams ask for a
+#   Gateway on port 80, so the entryPoints are moved to 80/443 -- which needs
+#   NET_BIND_SERVICE, hence the securityContext override.
+#
+#   This is dropped into the server's auto-deploy manifests directory so Traefik
+#   comes up already configured, rather than being restarted mid-exam.
+# ===============================================================================
+cat <<EOF > /tmp/traefik-gateway-config.yaml
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    providers:
+      kubernetesGateway:
+        enabled: true
+    # The chart also ships a default Gateway whose listener is pinned to the stock
+    # web entryPoint port (8000). Its template hard-fails with
+    # "port 8000 is not declared in ports" once the entryPoint moves to 80, which
+    # would take the whole Traefik install down. GatewayClass "traefik" only needs
+    # providers.kubernetesGateway, so dropping this Gateway costs nothing -- and it
+    # keeps "kubectl get gateway -A" showing just the candidate's own object.
+    gateway:
+      enabled: false
+    ports:
+      web:
+        port: 80
+      websecure:
+        port: 443
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      runAsNonRoot: false
+      capabilities:
+        add:
+          - NET_BIND_SERVICE
+EOF
+
+echo "Traefik Gateway API config generated: /tmp/traefik-gateway-config.yaml"
+
+# Generate K3d config
+cat <<EOF > /tmp/k3d-config.yaml
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: $CLUSTER_NAME
+servers: 1
+agents: $NUM_WORKERS
+image: rancher/k3s:${K3S_VERSION}
+kubeAPI:
+  host: "127.0.0.1"
+  hostPort: "6443"
+files:
+  # k3d resolves a relative source against the directory of this config file, and
+  # joining an absolute path here would yield /tmp/tmp/... instead, so keep it relative.
+  - source: traefik-gateway-config.yaml
+    destination: /var/lib/rancher/k3s/server/manifests/traefik-gateway-config.yaml
+    nodeFilters:
+      - server:*
+options:
+  k3s:
+    extraArgs:
+      - arg: "--tls-san=k8s-api-server"
+        nodeFilters:
+          - server:*
+      - arg: "--tls-san=127.0.0.1"
+        nodeFilters:
+          - server:*
+      - arg: "--tls-san=localhost"
+        nodeFilters:
+          - server:*
+EOF
+
+echo "Cluster config with $NUM_WORKERS worker nodes generated: /tmp/k3d-config.yaml"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') | Creating K3d cluster with configuration..."
+echo "$(date '+%Y-%m-%d %H:%M:%S') | ├── Name:  $CLUSTER_NAME"
+echo "$(date '+%Y-%m-%d %H:%M:%S') | ├── Config: /tmp/k3d-config.yaml"
+echo "$(date '+%Y-%m-%d %H:%M:%S') | └── Number of nodes: $((NUM_WORKERS + 1)) (1 server + $NUM_WORKERS agents)"
+
+# Create k3d cluster
+k3d cluster create --config /tmp/k3d-config.yaml
+
+# ===============================================================================
+#   Cluster Readiness Check
+# ===============================================================================
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') | Verifying cluster status..."
+CLUSTER_CHECK_COUNT=0
+
+# Wait for k3d cluster to be ready
+while ! k3d cluster list | grep -q "$CLUSTER_NAME"; do
+    CLUSTER_CHECK_COUNT=$((CLUSTER_CHECK_COUNT+1))
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | [WAITING] K3d cluster '$CLUSTER_NAME' not ready yet... (attempt $CLUSTER_CHECK_COUNT)"
+    sleep 5
+done
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') | ✅ K3d cluster '$CLUSTER_NAME' is up and running!"
+
+# ===============================================================================
+#   Setup Complete
+# ===============================================================================
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') | Docker and KIND environment is ready for use"
+
+k3d kubeconfig get $CLUSTER_NAME > /home/candidate/.kube/kubeconfig
+echo "Kubeconfig file created: /home/candidate/.kube/kubeconfig"
+
+# Save kubeconfig and set API server address
+sed -i 's|server: https://127\.0\.0\.1:\([0-9]*\)|server: https://k8s-api-server:\1|' /home/candidate/.kube/kubeconfig
+
+echo "Kubeconfig file content:"
+cat /home/candidate/.kube/kubeconfig
+
+export KUBECONFIG=/home/candidate/.kube/kubeconfig
+
+#info on config file setup done 
+echo "$(date '+%Y-%m-%d %H:%M:%S') | Config file setup done"
+
+#info on cluster setup done 
+echo "$(date '+%Y-%m-%d %H:%M:%S') | Cluster setup done"
+
+exit 0

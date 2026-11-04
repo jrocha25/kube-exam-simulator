@@ -1,0 +1,91 @@
+#!/bin/bash
+exec >> /proc/1/fd/1 2>&1
+
+# Cleanup script to remove the exam clusters
+
+CLUSTER_NAME=${1:-cluster}
+
+# Check if CLUSTER_NAME is set
+if [ -z "$CLUSTER_NAME" ]; then
+    echo "CLUSTER_NAME is not set"
+    exit 1
+fi
+
+# ===============================================================================
+#   Cluster flavour detection
+#
+#   env-setup takes a clusterType argument, but cleanup deliberately does not:
+#   asking the two paths to agree on a value passed from two different callers is
+#   one more thing that can desync. Whichever tool reports the cluster owns it.
+#
+#   Since a lab may ask for an auxiliary cluster as well as its own, this deletes
+#   every kind cluster the daemon reports rather than the one name it was given --
+#   for the same reason. The alternative is tracking both names through the same
+#   two callers, and a leaked aux cluster is expensive: it holds its nodes, its
+#   Calico and roughly 2.5G of memory until something else reclaims them, which
+#   the next exam then has to start without.
+#
+#   A k3d primary can carry a kind auxiliary, so these are two independent checks
+#   rather than a branch: neither flavour's presence rules the other out.
+# ===============================================================================
+FOUND_ANY=no
+
+if command -v kind >/dev/null 2>&1; then
+    for kind_cluster in $(kind get clusters 2>/dev/null); do
+        FOUND_ANY=yes
+        echo "kind cluster '$kind_cluster' found, deleting it"
+        kind delete cluster --name "$kind_cluster"
+
+        while kind get clusters 2>/dev/null | grep -qx "$kind_cluster"; do
+            sleep 1
+        done
+
+        echo "kind cluster '$kind_cluster' has been deleted."
+    done
+fi
+
+if command -v k3d >/dev/null 2>&1 && k3d cluster list 2>/dev/null | grep -q "$CLUSTER_NAME"; then
+    FOUND_ANY=yes
+    k3d cluster delete "$CLUSTER_NAME"
+
+    # Wait until the cluster is fully deleted
+    while k3d cluster list 2>/dev/null | grep -q "$CLUSTER_NAME"; do
+        sleep 1
+    done
+
+    echo "K3d cluster '$CLUSTER_NAME' has been deleted."
+fi
+
+if [ "$FOUND_ANY" = no ]; then
+    echo "No kind or k3d cluster found; clearing leftover files only."
+fi
+
+# ===============================================================================
+#   Prune
+#
+#   kind and k3d each pull a multi-hundred-MB node image per cluster; leave both
+#   in place so the next exam does not re-download them, and clear everything
+#   else. The unused aux docker network goes with the network prune.
+# ===============================================================================
+docker volume prune -f
+docker network prune -f
+docker image prune -f \
+    --filter "label!=io.k8s.sigs.kind.cluster" \
+    --filter "label!=ghcr.io/k3d-io"
+echo "Docker system cleaned up."
+
+# ===============================================================================
+#   Generated files
+#   Every path either flavour writes, whether or not this run created it -- a
+#   stale kubeconfig outlives the cluster it points at and is worse than none.
+# ===============================================================================
+rm -f /tmp/kind-config.yaml /tmp/kind-config-aux.yaml
+rm -f /tmp/calico-primary.yaml /tmp/calico-aux.yaml
+rm -f /tmp/k3d-config.yaml
+rm -f /tmp/traefik-gateway-config.yaml
+rm -f /home/candidate/.kube/kubeconfig /home/candidate/.kube/kubeconfig-aux
+rm -f /home/candidate/.kube/networkpolicy-unavailable /home/candidate/.kube/node-ssh-unavailable
+rm -f /home/candidate/.kube/aux-networkpolicy-unavailable /home/candidate/.kube/aux-node-ssh-unavailable
+
+echo "Cleanup completed."
+exit 0

@@ -1,0 +1,63 @@
+# Node.js dependencies and logs
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+.npm/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Docker related
+.docker/
+docker-compose.override.yml
+
+# Kubernetes secrets (in production, consider using sealed secrets or other secure methods)
+# k8s/secrets/
+
+# Build outputs
+dist/
+build/
+tmp/
+out/
+logs/
+*.log
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.history/
+*.sublime*
+.project
+.classpath
+.settings/
+*.code-workspace
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+.temp/
+.cache/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Miscellaneous
+.vagrant/
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+.terragrunt-cache/ 

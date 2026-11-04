@@ -1,0 +1,589 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "archive",
+      "machineHostname": "ckad9999",
+      "question": "The `archive` namespace used to host a document archive. Its Deployment and its PersistentVolumeClaim were both deleted by mistake, but the PersistentVolume `archive-pv` was created with the `Retain` reclaim policy, so the data on disk survived.\n\nBring the archive back:\n\n1. Make `archive-pv` usable by a new claim again. Do not delete and recreate it, and keep its capacity `1Gi`, its reclaim policy `Retain` and its storage class `archive-manual`.\n\n2. Create a PersistentVolumeClaim named `archive-pvc` in the `archive` namespace with access mode `ReadWriteOnce` and a storage request of `500Mi`, and make sure it binds to `archive-pv`.\n\n3. A Deployment manifest is prepared at `/tmp/exam/q1/archive-deploy.yaml` with an empty `claimName`. Fill in the name of your claim, apply the manifest, and make sure the Deployment `archive-api` becomes ready.",
+      "concepts": [
+        "storage",
+        "persistent-volumes",
+        "reclaim-policy"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "PersistentVolume archive-pv was reused and is bound to archive-pvc",
+          "verificationScriptFile": "q1_s1_validate_pv.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "PersistentVolumeClaim archive-pvc requests 500Mi ReadWriteOnce and is bound to archive-pv",
+          "verificationScriptFile": "q1_s2_validate_pvc.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Deployment archive-api is ready and mounts archive-pvc",
+          "verificationScriptFile": "q1_s3_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "media",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `media-api` in the `media` namespace currently runs `1` replica of the image `nginx:1.25`.\n\nScale it to `4` replicas and roll it out to the image `nginx:1.27.4`, keeping the container name `api`.\n\nRecord the change cause `image update to nginx 1.27.4` on the Deployment, so that the reason for the rollout is visible in its rollout history.",
+      "concepts": [
+        "workloads",
+        "deployments",
+        "rollouts"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Deployment media-api runs 4 ready replicas",
+          "verificationScriptFile": "q2_s1_validate_replicas.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Container api uses the image nginx:1.27.4",
+          "verificationScriptFile": "q2_s2_validate_image.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The change cause is recorded on the Deployment",
+          "verificationScriptFile": "q2_s3_validate_change_cause.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "analytics",
+      "machineHostname": "ckad9999",
+      "question": "All `3` Pods of the Deployment `report-builder` in the `analytics` namespace are stuck in the `Pending` state and never start.\n\n`report-builder` generates small nightly reports. A single replica has never needed more than a fraction of a CPU core and a few hundred MiB of memory. The nodes are shared with other teams, so this workload has to keep declaring what it consumes.\n\nInvestigate why the Pods are not being scheduled and repair the Deployment.\n\nWhen you are finished all `3` replicas must be ready, the Deployment must still declare `3` replicas, it must still have exactly one container named `builder` running `nginx:1.27.4`, and that container must still declare CPU and memory requests as well as CPU and memory limits.",
+      "concepts": [
+        "troubleshooting",
+        "scheduling",
+        "resource-requests"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "All 3 replicas of report-builder are ready",
+          "verificationScriptFile": "q3_s1_validate_ready.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Container builder still declares CPU and memory requests and limits",
+          "verificationScriptFile": "q3_s2_validate_resources.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Every Pod is scheduled and the container is otherwise unchanged",
+          "verificationScriptFile": "q3_s3_validate_scheduled.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "checkout",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `checkout-api` in the `checkout` namespace already declares CPU requests.\n\nCreate a HorizontalPodAutoscaler named `checkout-hpa` in the `checkout` namespace that targets that Deployment, using the `autoscaling/v2` API version, with exactly these specifications:\n\n- Minimum replicas: `2`\n- Maximum replicas: `8`\n- Scales on `60`% average CPU utilization\n- Waits `45` seconds before acting on a scale down decision",
+      "concepts": [
+        "workloads",
+        "autoscaling",
+        "horizontal-pod-autoscaler"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "HorizontalPodAutoscaler checkout-hpa targets checkout-api and scales between 2 and 8 replicas",
+          "verificationScriptFile": "q4_s1_validate_hpa.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The autoscaler targets 60% average CPU utilization",
+          "verificationScriptFile": "q4_s2_validate_metric.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The scale down stabilization window is 45 seconds",
+          "verificationScriptFile": "q4_s3_validate_behavior.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "loadgen",
+      "machineHostname": "ckad9999",
+      "question": "The capacity planning team needs to know where the CPU of this cluster is going.\n\nFind the Pod that is currently consuming the most CPU across all namespaces, and write it into `/tmp/exam/q5/top-pod.txt` in the format `namespace/pod_name`.\n\nThen write the name of the node that Pod is running on into `/tmp/exam/q5/top-node.txt`.\n\nEach file must contain only the requested value and nothing else.",
+      "concepts": [
+        "cluster-architecture",
+        "metrics",
+        "observability"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "/tmp/exam/q5/top-pod.txt names the Pod consuming the most CPU",
+          "verificationScriptFile": "q5_s1_validate_top_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "/tmp/exam/q5/top-node.txt names the node that Pod runs on",
+          "verificationScriptFile": "q5_s2_validate_top_node.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "ledger",
+      "machineHostname": "ckad9999",
+      "question": "The `ledger` namespace runs the Helioscale ledger service. Its Pods carry the label `app=ledger` and serve HTTP on port `80`.\n\nFor audit reasons the ledger Pods may only accept incoming traffic from Pods running in the `ledger-clients` namespace, on port `80`. No other ingress traffic may reach them, not even from other Pods in the `ledger` namespace itself.\n\nA colleague has prepared three candidate NetworkPolicy manifests in `/tmp/exam/q6/policies/`. Each takes a different approach to the same requirement.\n\nEvaluate all three, decide which one enforces the requirement in the least permissive way, and apply that one to the cluster exactly as it is.\n\nDo not edit the contents of any of the three files, and apply only one of them.",
+      "concepts": [
+        "networking",
+        "network-policies",
+        "security"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "A NetworkPolicy named ledger-ingress restricts ingress for the app=ledger Pods",
+          "verificationScriptFile": "q6_s1_validate_policy_target.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "The applied policy is the least permissive of the three candidates",
+          "verificationScriptFile": "q6_s2_validate_least_permissive.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The three candidate files were applied unmodified",
+          "verificationScriptFile": "q6_s3_validate_files_unmodified.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "delivery",
+      "machineHostname": "ckad9999",
+      "question": "The delivery team's automation pipeline needs to manage workloads in the `delivery` namespace, and nowhere else.\n\n1. Create a ServiceAccount named `pipeline-bot` in the `delivery` namespace.\n\n2. Create a ClusterRole named `deploy-manager` that allows `get`, `list`, `watch`, `create`, `update`, `patch` and `delete` on `deployments` and `replicasets` in the `apps` API group, and `get` and `list` on `pods`.\n\n3. Grant `pipeline-bot` those permissions in the `delivery` namespace only, through a RoleBinding named `pipeline-binding`.\n\nThe account must **not** be able to create Deployments in any other namespace, for example in `delivery-staging`.",
+      "concepts": [
+        "cluster-architecture",
+        "rbac",
+        "service-accounts"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ServiceAccount pipeline-bot exists in the delivery namespace",
+          "verificationScriptFile": "q7_s1_validate_sa.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "ClusterRole deploy-manager grants the required verbs on deployments, replicasets and pods",
+          "verificationScriptFile": "q7_s2_validate_clusterrole.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "RoleBinding pipeline-binding binds the ClusterRole to the ServiceAccount",
+          "verificationScriptFile": "q7_s3_validate_binding.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The permissions are effective in delivery and denied in delivery-staging",
+          "verificationScriptFile": "q7_s4_validate_permissions.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "logistics",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `shipment-tracker` in the `logistics` namespace writes its log to `/var/log/app/tracker.log` inside its `tracker` container. The operations team wants those lines shipped off the Pod.\n\nAdd a sidecar container named `log-shipper` to the Deployment with exactly these specifications:\n\n- Image: `busybox:1.36`\n- Command: `/bin/sh` with the arguments `-c` and `tail -F /var/log/app/tracker.log`\n- It must run as a **native sidecar**, that is, it must start before the application container and keep running for the whole life of the Pod, instead of running to completion like an ordinary init container\n\nBoth containers need the same log directory, so add an `emptyDir` volume named `app-logs` and mount it at `/var/log/app` in both of them.\n\nDo not change the image or the command of the existing `tracker` container. The Deployment must roll out with all replicas ready.",
+      "concepts": [
+        "workloads",
+        "multi-container-pods",
+        "sidecars"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "A native sidecar named log-shipper is defined on the Deployment",
+          "verificationScriptFile": "q8_s1_validate_sidecar.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Both containers mount the shared emptyDir volume app-logs at /var/log/app",
+          "verificationScriptFile": "q8_s2_validate_volume.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The Deployment rolled out with all replicas ready and the tracker container unchanged",
+          "verificationScriptFile": "q8_s3_validate_rollout.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "priority",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `edge-proxy` in the `priority` namespace must win against less important workloads when the cluster runs out of room, but it must never outrank the most important class the platform team has already defined.\n\nInspect the PriorityClasses that already exist in the cluster and ignore the built in `system-` classes.\n\nCreate a PriorityClass named `edge-critical` whose value is exactly one less than the highest value among the existing user defined PriorityClasses. It must not become the global default.\n\nThen make the Deployment `edge-proxy` use `edge-critical`, and make sure its Pods are running with that priority.",
+      "concepts": [
+        "workloads",
+        "scheduling",
+        "priority-classes"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "PriorityClass edge-critical has the correct value and is not the global default",
+          "verificationScriptFile": "q9_s1_validate_priorityclass.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Deployment edge-proxy uses the PriorityClass edge-critical",
+          "verificationScriptFile": "q9_s2_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The edge-proxy Pods run with the new priority",
+          "verificationScriptFile": "q9_s3_validate_pods.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "edge-helm",
+      "machineHostname": "ckad9999",
+      "question": "An unpublished Helm chart is available on this machine at `/tmp/exam/q10/helioscale-web`. It is not part of any Helm repository.\n\n1. Install it into the `edge-helm` namespace as a release named `web-edge`, overriding the chart value `replicaCount` with `3`.\n\n2. Upgrade the release, this time setting `replicaCount` to `5` and `image.tag` to `1.28.0`.\n\n3. The upgrade is rejected by the change advisory board. Roll the release back to its first revision.\n\nWhen you are finished the release must be in status `deployed` at revision `3`, and the running Deployment must be back to `3` replicas of `nginx:1.27.4`.",
+      "concepts": [
+        "cluster-architecture",
+        "helm",
+        "package-management"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Helm release web-edge is deployed at revision 3 from the local chart",
+          "verificationScriptFile": "q10_s1_validate_release.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The effective release values are back to 3 replicas and the Deployment is ready",
+          "verificationScriptFile": "q10_s2_validate_values.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The rollback restored the image nginx:1.27.4",
+          "verificationScriptFile": "q10_s3_validate_image.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "edge-basic",
+      "machineHostname": "ckad9999",
+      "question": "Helioscale is moving its edge routing to the Kubernetes Gateway API. The Gateway API CRDs are already installed, and the cluster's ingress controller has already registered a GatewayClass.\n\n1. Find the GatewayClass that the controller has accepted, and write its controller name, the value of `spec.controllerName` and nothing else, into `/tmp/exam/q11/gatewayclass.txt`.\n\n2. In the `edge-basic` namespace, create a Gateway named `edge-gw` that uses that GatewayClass, with a single listener named `http` on port `80`, protocol `HTTP` and hostname `search.helioscale.io`. The Gateway must reach `Programmed=True`.\n\n3. In the same namespace, create an HTTPRoute named `search-route` for the hostname `search.helioscale.io`, attached to `edge-gw`, that routes the path prefix `/` to the existing Service `search-svc` on port `80`. The route must be accepted by the Gateway.\n\nUse the `gateway.networking.k8s.io/v1` API version.",
+      "concepts": [
+        "gateway-api",
+        "networking",
+        "gateway-class"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "/tmp/exam/q11/gatewayclass.txt contains the controller name of the accepted GatewayClass",
+          "verificationScriptFile": "q11_s1_validate_gatewayclass_file.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "Gateway edge-gw listens on search.helioscale.io port 80 and is programmed",
+          "verificationScriptFile": "q11_s2_validate_gateway.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "HTTPRoute search-route is accepted and routes / to search-svc:80",
+          "verificationScriptFile": "q11_s3_validate_httproute.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "edge-migrate",
+      "machineHostname": "ckad9999",
+      "question": "The `edge-migrate` namespace still serves `www.helioscale.io` through the Ingress `legacy-web`. A Gateway named `web-gw` has already been created in the same namespace for the same hostname.\n\nExamine `legacy-web` to learn the routing it implements, then reproduce it with the Gateway API:\n\n1. Create an HTTPRoute named `web-route` in `edge-migrate` for the hostname `www.helioscale.io`, attached to `web-gw`, that routes the same path prefixes to the same backend Services on the same ports as the Ingress does.\n\n2. Every request handled by that route must reach its backend carrying the request header `X-Helioscale-Edge` with the value `gateway`.\n\n3. Once the HTTPRoute is accepted by the Gateway, delete the Ingress `legacy-web`.\n\nDo not modify the Gateway, the Services or the Deployments.",
+      "concepts": [
+        "gateway-api",
+        "networking",
+        "http-routes"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "HTTPRoute web-route reproduces the path routing of the legacy Ingress",
+          "verificationScriptFile": "q12_s1_validate_route_rules.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Every rule sets the request header X-Helioscale-Edge: gateway",
+          "verificationScriptFile": "q12_s2_validate_filter.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The legacy Ingress is gone, the Services are intact and the route is accepted",
+          "verificationScriptFile": "q12_s3_validate_migration.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "namespace": "edge-canary",
+      "machineHostname": "ckad9999",
+      "question": "The payments team is releasing a new version of its API behind the Gateway `canary-gw` in the `edge-canary` namespace. The namespace contains two Services, `pay-stable` and `pay-canary`, both listening on port `80`.\n\nCreate an HTTPRoute named `pay-route` in `edge-canary` for the hostname `pay.helioscale.io`, attached to `canary-gw`, that implements the release plan:\n\n- Ordinary traffic to the path prefix `/` is split between the two backends, `90`% of it to `pay-stable` and `10`% to `pay-canary`.\n\n- A request that carries the header `x-canary` with the value `always` goes to `pay-canary` alone, whatever the split says.\n\nThe route must be accepted by the Gateway.",
+      "concepts": [
+        "gateway-api",
+        "networking",
+        "traffic-splitting"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "HTTPRoute pay-route is attached to canary-gw for pay.helioscale.io",
+          "verificationScriptFile": "q13_s1_validate_route.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Requests carrying x-canary: always are sent to pay-canary only",
+          "verificationScriptFile": "q13_s2_validate_header_rule.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Ordinary traffic is split 90/10 between pay-stable and pay-canary",
+          "verificationScriptFile": "q13_s3_validate_split.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "namespace": "edge-shared",
+      "machineHostname": "ckad9999",
+      "question": "The Gateway `shared-gw` in the `edge-shared` namespace is the shared entry point for Helioscale. Today it serves only `www.helioscale.io`, and it only accepts routes from its own namespace.\n\nThe partner integrations team owns the `team-orders` namespace and needs to publish `partners.helioscale.io` through the same Gateway. Their namespace already carries the label `gateway-access=allowed`.\n\n1. Add a second listener to `shared-gw` named `partners`, on port `80`, protocol `HTTP`, hostname `partners.helioscale.io`, which accepts routes from namespaces carrying the label `gateway-access=allowed`. Leave the existing `http` listener exactly as it is.\n\n2. In the `team-orders` namespace, create an HTTPRoute named `orders-route` for the hostname `partners.helioscale.io` that routes the path prefix `/` to the Service `orders-svc` on port `80`. It must attach to the `partners` listener specifically, not to the Gateway as a whole.\n\nWhen you are finished the Gateway must still be programmed, the route must be accepted, and the `partners` listener must report at least one attached route.",
+      "concepts": [
+        "gateway-api",
+        "networking",
+        "listeners"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Gateway shared-gw keeps its http listener and adds a partners listener restricted by namespace label",
+          "verificationScriptFile": "q14_s1_validate_listeners.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "HTTPRoute orders-route targets the partners listener across namespaces",
+          "verificationScriptFile": "q14_s2_validate_route.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The route is accepted and the partners listener reports an attached route",
+          "verificationScriptFile": "q14_s3_validate_attachment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "namespace": "edge-tls",
+      "machineHostname": "ckad9999",
+      "question": "The `edge-tls` namespace already contains the Service `secure-svc` on port `80`, and a TLS Secret named `helioscale-tls` holding the certificate and key for `secure.helioscale.io`.\n\n1. Create a Gateway named `tls-gw` in `edge-tls` using the GatewayClass registered in this cluster, with a single listener named `https` on port `443`, protocol `HTTPS`, hostname `secure.helioscale.io`, which terminates TLS using the `helioscale-tls` Secret.\n\n2. Create an HTTPRoute named `secure-route` in the same namespace for the hostname `secure.helioscale.io`, which routes the path prefix `/` to `secure-svc` on port `80` and attaches to the `https` listener specifically.\n\nWhen you are finished the Gateway must be programmed, the `https` listener must resolve its certificate reference, and the route must be accepted.",
+      "concepts": [
+        "gateway-api",
+        "networking",
+        "tls"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Gateway tls-gw terminates TLS on port 443 with the helioscale-tls Secret",
+          "verificationScriptFile": "q15_s1_validate_listener.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The Gateway is programmed and the https listener resolves its certificate reference",
+          "verificationScriptFile": "q15_s2_validate_tls_status.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "HTTPRoute secure-route is accepted on the https listener",
+          "verificationScriptFile": "q15_s3_validate_route.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "namespace": "edge-front",
+      "machineHostname": "ckad9999",
+      "question": "The Gateway `front-gw` in the `edge-front` namespace publishes `inventory.helioscale.io`, but the application behind it lives elsewhere: the Service `inventory-svc` on port `80` belongs to the `backend-store` namespace, which is owned by another team.\n\n1. Create an HTTPRoute named `inventory-route` in `edge-front` for the hostname `inventory.helioscale.io`, attached to `front-gw`, that routes the path prefix `/` to `inventory-svc` in `backend-store` on port `80`.\n\n2. The Gateway API does not follow a reference that crosses a namespace boundary unless the owning namespace allows it. Create a ReferenceGrant named `allow-edge-front` in the `backend-store` namespace which allows HTTPRoute resources from the `edge-front` namespace to reference Services.\n\nWhen you are finished the route must be accepted and its backend references must resolve.\n\nDo not move the Service, and do not create a copy of it in `edge-front`.",
+      "concepts": [
+        "gateway-api",
+        "networking",
+        "cross-namespace-references"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "HTTPRoute inventory-route points at the Service backend-store/inventory-svc",
+          "verificationScriptFile": "q16_s1_validate_route.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "ReferenceGrant allow-edge-front permits HTTPRoutes from edge-front to reference Services",
+          "verificationScriptFile": "q16_s2_validate_referencegrant.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "The route is accepted and its cross namespace backend reference resolves",
+          "verificationScriptFile": "q16_s3_validate_resolved.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "namespace": "edge-broken",
+      "machineHostname": "ckad9999",
+      "question": "The shop application in the `edge-broken` namespace cannot be reached from outside the cluster.\n\nThe Deployment `shop` reports `3` ready Pods and the Service `shop-svc` has endpoints, but the Gateway `shop-gw` never reports itself as programmed and the HTTPRoute `shop-route` is not attached to it.\n\nThe shop is published to the public on `shop.helioscale.io`.\n\nThe Deployment `shop` and the Service `shop-svc` are owned by the storefront team and must not be modified in any way.\n\nInvestigate the Gateway API objects in that namespace and repair them.\n\nWhen you are finished the Gateway `shop-gw` must be accepted and programmed and must still have exactly one `HTTP` listener on port `80`; the HTTPRoute `shop-route` must be accepted with its backend references resolved, and must serve exactly the hostname `shop.helioscale.io`. Keep the existing resource names.",
+      "concepts": [
+        "troubleshooting",
+        "gateway-api",
+        "networking"
+      ],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Gateway shop-gw is accepted and programmed for shop.helioscale.io",
+          "verificationScriptFile": "q17_s1_validate_gateway.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "HTTPRoute shop-route serves shop.helioscale.io on the Gateway",
+          "verificationScriptFile": "q17_s2_validate_route_hostname.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "The route reaches shop-svc and its backend references resolve",
+          "verificationScriptFile": "q17_s3_validate_backend.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "4",
+          "description": "The Deployment and the Service were not modified",
+          "verificationScriptFile": "q17_s4_validate_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    }
+  ]
+}

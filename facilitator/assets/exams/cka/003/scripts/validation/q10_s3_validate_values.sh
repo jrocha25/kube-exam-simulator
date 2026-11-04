@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+NAMESPACE="helm-apps"
+DEPLOYMENT="webstack-web"
+
+if ! kubectl get deployment "$DEPLOYMENT" -n "$NAMESPACE" &> /dev/null; then
+    echo "❌ Deployment '$DEPLOYMENT' not found in namespace '$NAMESPACE'"
+    exit 1
+fi
+
+IMAGE=$(kubectl get deployment "$DEPLOYMENT" -n "$NAMESPACE" -o jsonpath='{.spec.template.spec.containers[0].image}')
+if [[ "$IMAGE" != "nginx:1.27.4" ]]; then
+    echo "❌ Incorrect image. Expected 'nginx:1.27.4', got '$IMAGE'"
+    exit 1
+fi
+
+echo "✅ Deployment '$DEPLOYMENT' runs the image nginx:1.27.4"
+exit 0

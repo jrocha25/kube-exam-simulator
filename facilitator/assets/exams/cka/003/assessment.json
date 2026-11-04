@@ -1,0 +1,521 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "namespace": "storage-manual",
+      "machineHostname": "ckad9999",
+      "question": "Create a PersistentVolume named `logs-pv` with exactly these specifications:\n\n- Capacity: `2Gi`\n- Access mode: `ReadWriteOnce`\n- Storage class name: `manual`\n- Reclaim policy: `Retain`\n- Volume type: `hostPath` with path `/mnt/logs-data` and type `DirectoryOrCreate`\n\nCreate a PersistentVolumeClaim named `logs-pvc` in the `storage-manual` namespace with:\n\n- Storage request: `2Gi`\n- Access mode: `ReadWriteOnce`\n- Storage class name: `manual`\n\nThe claim must end up bound to `logs-pv`.\n\nFinally create a Pod named `log-writer` in the `storage-manual` namespace with a single container named `writer` that uses the image `busybox:1.36` and runs the command `sh -c \"while true; do date >> /data/app.log; sleep 5; done\"`. The Pod must define a volume named `logs` backed by the PVC `logs-pvc` and mount it at `/data`. The Pod must reach the `Running` state.",
+      "concepts": ["storage", "persistent-volumes", "persistent-volume-claims"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "PersistentVolume logs-pv exists with the required capacity, access mode, storage class, reclaim policy and hostPath",
+          "verificationScriptFile": "q1_s1_validate_pv.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "PersistentVolumeClaim logs-pvc exists in storage-manual and is Bound to logs-pv",
+          "verificationScriptFile": "q1_s2_validate_pvc.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Pod log-writer is Running and mounts logs-pvc at /data",
+          "verificationScriptFile": "q1_s3_validate_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "namespace": "storage-dynamic",
+      "machineHostname": "ckad9999",
+      "question": "Create a StorageClass named `retain-local` with exactly these specifications:\n\n- Provisioner: `rancher.io/local-path`\n- Reclaim policy: `Retain`\n- Volume binding mode: `WaitForFirstConsumer`\n- Volume expansion: allowed\n\nDo **not** mark `retain-local` as the cluster default StorageClass, and do not change which StorageClass is currently the default.\n\nCreate a PersistentVolumeClaim named `archive-pvc` in the `storage-dynamic` namespace that requests `1Gi` with access mode `ReadWriteOnce` and uses the StorageClass `retain-local`.\n\nCreate a Pod named `archiver` in the `storage-dynamic` namespace with a single container named `archiver` that uses the image `busybox:1.36` and runs the command `sleep 3600`. The Pod must define a volume named `archive` backed by the PVC `archive-pvc` and mount it at `/archive`.\n\nThe Pod must reach the `Running` state and the PVC must end up in the `Bound` state.",
+      "concepts": ["storage", "storage-classes", "dynamic-provisioning"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "StorageClass retain-local exists with the required provisioner, reclaim policy, binding mode and expansion setting, and is not the default class",
+          "verificationScriptFile": "q2_s1_validate_sc.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "PersistentVolumeClaim archive-pvc is Bound and uses the retain-local StorageClass",
+          "verificationScriptFile": "q2_s2_validate_pvc.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Pod archiver is Running and mounts archive-pvc at /archive",
+          "verificationScriptFile": "q2_s3_validate_pod.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "namespace": "node-agents",
+      "machineHostname": "ckad9999",
+      "question": "Create a DaemonSet named `log-agent` in the `node-agents` namespace with exactly these specifications:\n\n- Pod label: `app=log-agent` (the DaemonSet selector must match this label)\n- Container name: `agent`\n- Image: `busybox:1.36`\n- Command: `sh -c \"while true; do sleep 30; done\"`\n\nThe DaemonSet must run one Pod on **every** node of the cluster, including nodes that carry taints. To achieve this, add a single toleration that uses `operator: Exists` with no `key` and no `effect` specified.\n\nEvery scheduled Pod of the DaemonSet must be ready.",
+      "concepts": ["workloads", "daemonsets", "tolerations"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "DaemonSet log-agent exists in node-agents with the required container name, image and command",
+          "verificationScriptFile": "q3_s1_validate_daemonset.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "DaemonSet tolerates every taint using operator Exists with no key and no effect",
+          "verificationScriptFile": "q3_s2_validate_toleration.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "DaemonSet is scheduled on every node and all its Pods are ready",
+          "verificationScriptFile": "q3_s3_validate_scheduling.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "namespace": "batch-jobs",
+      "machineHostname": "ckad9999",
+      "question": "Create a CronJob named `db-backup` in the `batch-jobs` namespace with exactly these specifications:\n\n- Schedule: `*/5 * * * *`\n- Container name: `backup`\n- Image: `busybox:1.36`\n- Command: `sh -c \"echo backup completed\"`\n- Pod restart policy: `OnFailure`\n- Successful jobs history limit: `2`\n- Failed jobs history limit: `1`\n\nAfter the CronJob exists, trigger it manually **once** by creating a Job named `db-backup-manual` in the `batch-jobs` namespace from the `db-backup` CronJob template. That Job must complete successfully.\n\nDo not change the CronJob schedule and do not suspend the CronJob.",
+      "concepts": ["workloads", "cronjobs", "jobs"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "CronJob db-backup exists with the required schedule, container name, image, command and restart policy",
+          "verificationScriptFile": "q4_s1_validate_cronjob.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "CronJob has the required successful and failed job history limits and is not suspended",
+          "verificationScriptFile": "q4_s2_validate_history_limits.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "Job db-backup-manual was created from the CronJob and completed successfully",
+          "verificationScriptFile": "q4_s3_validate_manual_job.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "namespace": "spread-lab",
+      "machineHostname": "ckad9999",
+      "question": "Create a Deployment named `spread-web` in the `spread-lab` namespace with exactly these specifications:\n\n- Replicas: `4`\n- Pod label and selector: `app=spread-web`\n- Container name: `web`\n- Image: `nginx:1.27.4`\n- Container port: `80`\n\nThe Pod template must contain exactly one topology spread constraint with:\n\n- `maxSkew`: `1`\n- `topologyKey`: `kubernetes.io/hostname`\n- `whenUnsatisfiable`: `ScheduleAnyway`\n- `labelSelector` matching the label `app=spread-web`\n\nAll `4` replicas must become ready.",
+      "concepts": ["workloads", "scheduling", "topology-spread-constraints"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Deployment spread-web exists with 4 replicas, the app=spread-web label and the required container name, image and port",
+          "verificationScriptFile": "q5_s1_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Pod template defines the required topology spread constraint",
+          "verificationScriptFile": "q5_s2_validate_spread.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "All 4 replicas of spread-web are ready",
+          "verificationScriptFile": "q5_s3_validate_pods.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "namespace": "web-shop",
+      "machineHostname": "ckad9999",
+      "question": "In the `web-shop` namespace, expose a web application end to end.\n\n1. Create a Deployment named `shop-web` with `2` replicas, pod label and selector `app=shop-web`, a single container named `web` using the image `nginx:1.27.4` and container port `80`. Both replicas must become ready.\n\n2. Create a Service named `shop-web-svc` of type `ClusterIP` with `port: 80`, `targetPort: 80`, protocol `TCP` and selector `app=shop-web`.\n\n3. Create an Ingress named `shop-web-ing` with `ingressClassName: traefik` and exactly one rule:\n\n- Host: `shop.example.com`\n- Path: `/`\n- Path type: `Prefix`\n- Backend service: `shop-web-svc` on port number `80`",
+      "concepts": ["services", "networking", "ingress"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Deployment shop-web exists with 2 ready replicas, the required label, container name, image and port",
+          "verificationScriptFile": "q6_s1_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Service shop-web-svc is a ClusterIP service with the required ports and selector and has 2 ready endpoints",
+          "verificationScriptFile": "q6_s2_validate_service.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Ingress shop-web-ing uses the traefik ingress class and routes shop.example.com prefix / to shop-web-svc port 80",
+          "verificationScriptFile": "q6_s3_validate_ingress.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "namespace": "net-guard",
+      "machineHostname": "ckad9999",
+      "question": "The `net-guard` namespace already contains three Pods: `backend` (label `app=backend`, serving HTTP on port `80`), `frontend` (label `app=frontend`) and `monitoring` (label `app=monitoring`).\n\nCreate a NetworkPolicy named `backend-ingress` in the `net-guard` namespace with exactly these specifications:\n\n- It applies to Pods with the label `app=backend`\n- `policyTypes` contains only `Ingress`\n- It has exactly one ingress rule, which allows traffic from Pods with the label `app=frontend` on protocol `TCP` port `80`\n\nAfter the policy is applied, Pod `frontend` must still be able to reach Pod `backend` on port `80`, and Pod `monitoring` must no longer be able to reach Pod `backend` on port `80`.\n\nDo not delete, relabel or modify the existing Pods.",
+      "concepts": ["networking", "network-policies", "security"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "NetworkPolicy backend-ingress selects app=backend and allows only Ingress from app=frontend on TCP port 80",
+          "verificationScriptFile": "q7_s1_validate_policy_spec.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Pod frontend can still reach Pod backend on port 80",
+          "verificationScriptFile": "q7_s2_validate_allowed.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Pod monitoring can no longer reach Pod backend on port 80",
+          "verificationScriptFile": "q7_s3_validate_denied.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "namespace": "cache-tier",
+      "machineHostname": "ckad9999",
+      "question": "The `cache-tier` namespace already contains a Deployment named `cache` with `2` ready replicas whose Pods carry the label `app=cache` and listen on port `6379`.\n\nCreate a Service named `cache-svc` in the `cache-tier` namespace with exactly these specifications:\n\n- Type: `NodePort`\n- Selector: `app=cache`\n- Protocol: `TCP`\n- Service port: `6379`\n- Target port: `6379`\n- Node port: `31379`\n\nThe Service must have both `cache` Pods as ready endpoints.\n\nDo not modify the `cache` Deployment.",
+      "concepts": ["services", "networking", "nodeport"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Service cache-svc is of type NodePort and uses node port 31379",
+          "verificationScriptFile": "q8_s1_validate_service_type.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Service cache-svc has the required port, target port, protocol and selector",
+          "verificationScriptFile": "q8_s2_validate_ports.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Service cache-svc has both cache Pods as ready endpoints on port 6379",
+          "verificationScriptFile": "q8_s3_validate_endpoints.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "namespace": "ops-rbac",
+      "machineHostname": "ckad9999",
+      "question": "Configure read-only access to workloads for an automation account.\n\n1. Create a ServiceAccount named `deploy-bot` in the `ops-rbac` namespace.\n\n2. Create a ClusterRole named `deployment-reader` with exactly one rule:\n\n- apiGroups: `apps`\n- resources: `deployments` and `replicasets`\n- verbs: `get`, `list` and `watch`\n\n3. Create a RoleBinding named `deploy-bot-reader` in the `ops-rbac` namespace that binds the ClusterRole `deployment-reader` to the ServiceAccount `deploy-bot` of the `ops-rbac` namespace.\n\nThe binding must be a namespace-scoped RoleBinding, **not** a ClusterRoleBinding: `deploy-bot` must be able to list Deployments in the `ops-rbac` namespace and must **not** be able to list Deployments in the `default` namespace.",
+      "concepts": ["cluster-architecture", "rbac", "service-accounts"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "ServiceAccount deploy-bot exists in the ops-rbac namespace",
+          "verificationScriptFile": "q9_s1_validate_sa.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "2",
+          "description": "ClusterRole deployment-reader grants get, list and watch on deployments and replicasets in the apps API group",
+          "verificationScriptFile": "q9_s2_validate_clusterrole.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "RoleBinding deploy-bot-reader binds the ClusterRole to the deploy-bot ServiceAccount in ops-rbac",
+          "verificationScriptFile": "q9_s3_validate_binding.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "deploy-bot can list deployments in ops-rbac but not in the default namespace",
+          "verificationScriptFile": "q9_s4_validate_permissions.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "namespace": "helm-apps",
+      "machineHostname": "ckad9999",
+      "question": "A local Helm chart is available on this machine at `/tmp/exam/q10/webstack`. It is not published in any Helm repository.\n\nUsing Helm, install that chart into the existing `helm-apps` namespace as a release named `webstack`, overriding exactly two values at install time:\n\n- `replicaCount` set to `3`\n- `image.tag` set to `1.27.4`\n\nThe release must end up in the `deployed` status, and the Deployment it creates, `webstack-web`, must have `3` ready replicas running the image `nginx:1.27.4`.\n\nDo not edit the chart files and do not modify the created Deployment directly.",
+      "concepts": ["cluster-architecture", "helm", "package-management"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Helm release webstack exists in namespace helm-apps with status deployed for chart webstack-0.1.0",
+          "verificationScriptFile": "q10_s1_validate_release.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Deployment webstack-web exists with 3 ready replicas",
+          "verificationScriptFile": "q10_s2_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Deployment webstack-web runs the image nginx:1.27.4",
+          "verificationScriptFile": "q10_s3_validate_values.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "namespace": "crd-lab",
+      "machineHostname": "ckad9999",
+      "question": "A CustomResourceDefinition manifest is available on this machine at `/tmp/exam/q11/backupjob-crd.yaml`.\n\n1. Apply that manifest unchanged to the cluster. It defines the CustomResourceDefinition `backupjobs.ops.example.com` (group `ops.example.com`, version `v1`, kind `BackupJob`, scope `Namespaced`). The CRD must reach the `Established` condition.\n\n2. Create one custom resource of kind `BackupJob` named `nightly-db` in the `crd-lab` namespace with exactly these fields:\n\n- `spec.schedule`: `0 2 * * *`\n- `spec.retention`: `7`\n\nDo not modify the CRD manifest file.",
+      "concepts": ["cluster-architecture", "custom-resource-definitions", "extensibility"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "CustomResourceDefinition backupjobs.ops.example.com is applied and Established",
+          "verificationScriptFile": "q11_s1_validate_crd.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "BackupJob nightly-db exists in crd-lab with the required schedule and retention values",
+          "verificationScriptFile": "q11_s2_validate_cr.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "namespace": "drain-lab",
+      "machineHostname": "ckad9999",
+      "question": "The node `k3d-cluster-agent-1` must be taken out of service for maintenance. It is reserved for a single workload by the taint `maintenance=reserved:NoSchedule`, and the `drain-lab` namespace contains a Deployment named `legacy-app` with `3` replicas that is pinned to that node by a `nodeSelector` and tolerates that taint.\n\n1. Mark the node `k3d-cluster-agent-1` as unschedulable and evict all Pods from it, ignoring DaemonSet-managed Pods and deleting Pods that use emptyDir local storage. Leave the node unschedulable when you are done — do not uncordon it.\n\n2. Update the Deployment `legacy-app` in the `drain-lab` namespace by removing its `nodeSelector` entirely. Change nothing else about the Deployment: it must keep `3` replicas, its existing toleration, the container name `web` and the image `nginx:1.27.4`.\n\nWhen you are finished, all `3` replicas of `legacy-app` must be ready and none of them may be running on `k3d-cluster-agent-1`.",
+      "concepts": ["cluster-architecture", "node-maintenance", "drain"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Node k3d-cluster-agent-1 is marked unschedulable",
+          "verificationScriptFile": "q12_s1_validate_cordon.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "No Pod other than DaemonSet-managed Pods runs on k3d-cluster-agent-1",
+          "verificationScriptFile": "q12_s2_validate_drained.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Deployment legacy-app has no nodeSelector and its 3 replicas are ready off the drained node",
+          "verificationScriptFile": "q12_s3_validate_deployment.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "namespace": "ts-image",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `billing-api` in the `ts-image` namespace is configured for `3` replicas, but none of its Pods ever reach the `Running` state.\n\nThe approved container image for this application is `nginx:1.27.4`.\n\nInvestigate the Deployment and restore it to a healthy state.\n\nWhen you are finished all `3` replicas must be ready, the Deployment must still declare `3` replicas, and it must still have exactly one container, named `api`, running the approved image.",
+      "concepts": ["troubleshooting", "deployments", "images"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Container api of Deployment billing-api uses the image nginx:1.27.4",
+          "verificationScriptFile": "q13_s1_validate_image.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "All 3 replicas of billing-api are ready",
+          "verificationScriptFile": "q13_s2_validate_ready.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "3",
+          "description": "Deployment billing-api was fixed while keeping 3 replicas and a single container named api",
+          "verificationScriptFile": "q13_s3_validate_unchanged.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "namespace": "ts-config",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `payments-worker` in the `ts-config` namespace is configured for `2` replicas, but its containers never start.\n\nThe `ts-config` namespace already contains the ConfigMap that holds this worker's configuration. That ConfigMap is the single source of truth for the application: it must not be edited, renamed, copied, or replaced by a second ConfigMap.\n\nInvestigate the Deployment and restore it to a healthy state.\n\nWhen you are finished:\n\n- Both replicas must be ready\n- The container named `worker` must still receive its entire configuration through `envFrom` with a `configMapRef` — not through individual `env` entries\n- The Deployment must still declare `2` replicas\n- The environment variable `PAYMENT_MODE` must be present inside the container with the value `live`",
+      "concepts": ["troubleshooting", "configmaps", "workloads"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Container worker loads environment variables with envFrom from the ConfigMap payments-cfg",
+          "verificationScriptFile": "q14_s1_validate_envfrom.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The existing ConfigMap payments-cfg is reused intact and no payments-config ConfigMap was created",
+          "verificationScriptFile": "q14_s2_validate_no_new_cm.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "Both replicas are ready and PAYMENT_MODE is set to live inside the container",
+          "verificationScriptFile": "q14_s3_validate_running.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "namespace": "ts-service",
+      "machineHostname": "ckad9999",
+      "question": "In the `ts-service` namespace the Deployment `catalog` runs `3` ready replicas that serve HTTP on container port `80`. Clients that connect through the Service `catalog-svc` in the same namespace get connection failures.\n\nThe Deployment `catalog` is owned by another team and must not be modified in any way.\n\nInvestigate and repair `catalog-svc` so that traffic reaches the `catalog` Pods.\n\nWhen you are finished the Service must:\n\n- Still be named `catalog-svc` and still be of type `ClusterIP` on service port `80`\n- Select its Pods with exactly one label\n- Forward traffic to the containers' port `80`\n- List all `3` Pods as ready endpoints",
+      "concepts": ["troubleshooting", "services", "selectors"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Service catalog-svc selects Pods with the label app=catalog",
+          "verificationScriptFile": "q15_s1_validate_selector.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "Service catalog-svc is still a ClusterIP service on port 80 and forwards to target port 80",
+          "verificationScriptFile": "q15_s2_validate_target_port.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "Service catalog-svc has 3 ready endpoints on port 80",
+          "verificationScriptFile": "q15_s3_validate_endpoints.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "4",
+          "description": "The Service was fixed without modifying the catalog Deployment",
+          "verificationScriptFile": "q15_s4_validate_deployment_untouched.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "namespace": "ts-sched",
+      "machineHostname": "ckad9999",
+      "question": "All `3` Pods of the Deployment `analytics` in the `ts-sched` namespace are stuck in the `Pending` state.\n\nThis workload is required to run on the node `k3d-cluster-agent-0`. The configuration of the cluster nodes is owned by the platform team and must not be changed, and the placement rules already declared in the Deployment's Pod template must stay exactly as they are.\n\nInvestigate why the Pods are not being scheduled and make the Deployment schedulable again, matching the node's condition explicitly by its key and its value rather than with a catch-all.\n\nWhen you are finished the Deployment must still declare `3` replicas and all `3` Pods must be `Running` on the node `k3d-cluster-agent-0`.",
+      "concepts": ["troubleshooting", "scheduling", "taints-and-tolerations"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Deployment analytics declares the required toleration for the workload=analytics NoSchedule taint",
+          "verificationScriptFile": "q16_s1_validate_toleration.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "2",
+          "description": "The Deployment was fixed with a toleration while the node taint and nodeSelector stayed unchanged",
+          "verificationScriptFile": "q16_s2_validate_taint_intact.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        },
+        {
+          "id": "3",
+          "description": "All 3 analytics Pods are Running on k3d-cluster-agent-0",
+          "verificationScriptFile": "q16_s3_validate_pods.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "namespace": "ts-probe",
+      "machineHostname": "ckad9999",
+      "question": "The Deployment `frontend` in the `ts-probe` namespace is configured for `2` replicas, but its containers are killed and restarted over and over and the Deployment never settles.\n\nThe container named `web` runs `nginx:1.27.4`, which serves HTTP on port `80` and responds on the path `/`. It exposes no other HTTP endpoint.\n\nInvestigate the Deployment and restore it to a healthy state.\n\nConstraints:\n\n- The container `web` must still have an `httpGet` liveness probe — do not delete it or replace it with another probe type\n- Keep `initialDelaySeconds` at `5` and `periodSeconds` at `10`\n- Keep `2` replicas and the image `nginx:1.27.4`\n\nBoth replicas must become ready and must stop restarting.",
+      "concepts": ["troubleshooting", "probes", "pod-lifecycle"],
+      "verification": [
+        {
+          "id": "1",
+          "description": "Liveness probe of container web performs an HTTP GET on / port 80 with initialDelaySeconds 5 and periodSeconds 10",
+          "verificationScriptFile": "q17_s1_validate_probe.sh",
+          "expectedOutput": "0",
+          "weightage": 3
+        },
+        {
+          "id": "2",
+          "description": "Both replicas of frontend are ready and have not restarted",
+          "verificationScriptFile": "q17_s2_validate_ready.sh",
+          "expectedOutput": "0",
+          "weightage": 2
+        },
+        {
+          "id": "3",
+          "description": "frontend Pods stay ready and stop restarting",
+          "verificationScriptFile": "q17_s3_validate_stable.sh",
+          "expectedOutput": "0",
+          "weightage": 1
+        }
+      ]
+    }
+  ]
+}

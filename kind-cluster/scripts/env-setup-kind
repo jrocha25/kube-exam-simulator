@@ -1,0 +1,457 @@
+#!/bin/bash
+exec >> /proc/1/fd/1 2>&1
+# ===============================================================================
+#   kubeadm (kind) Cluster Creation
+#   Arguments: NUM_WORKERS CLUSTER_NAME [ROLE]
+#
+#   Reached from env-setup when a lab's config.json carries "clusterType": "kind".
+#   Everything a k3s cluster cannot offer lives here:
+#
+#     * /etc/kubernetes/manifests on the control plane, with the four real static
+#       pods (etcd, apiserver, controller-manager, scheduler)
+#     * crictl and a kubelet systemd unit on every node
+#     * an sshd on every node, reachable from the jumphost as "controlplane",
+#       "node01", "node02"
+#     * Calico instead of kindnet, so NetworkPolicy is actually enforced
+#
+#   ROLE is "primary" (the lab's own cluster) or "aux" (the auxiliary cluster a lab
+#   asks for with "auxCluster" in config.json). The aux cluster exists so a question
+#   may break something cluster-wide -- DNS, the API server, a kubelet -- without
+#   any other question in the same lab having to be written around the damage. Every
+#   value the two clusters cannot share is derived from ROLE in one block below; the
+#   primary path is unchanged from before the aux cluster existed.
+#
+#   Nothing in here may exit non-zero on a soft failure. prepare-exam-env.sh
+#   ignores exit codes and always exits 0, so a hard failure here would surface as
+#   a READY exam sitting on a half-built cluster. Anything that does not come up
+#   prints "WARNING:" and leaves a marker the lab's setup scripts can read.
+# ===============================================================================
+
+NUM_WORKERS=${1:-0}
+CLUSTER_NAME=${2:-cluster}
+ROLE=${3:-primary}
+NODE_IMAGE_OVERRIDE=${4:-""}
+
+# Invoked over SSH, which does not inherit the image's ENV.
+if [ -f /etc/ck-x-versions ]; then
+    . /etc/ck-x-versions
+fi
+KIND_NODE_IMAGE=${KIND_NODE_IMAGE:-kindest/node:v1.34.8}
+CALICO_VERSION=${CALICO_VERSION:-v3.32.1}
+
+# A lab may ask for its auxiliary cluster to run a different node image than the
+# pinned one ("auxNodeImage" in config.json) -- one minor *behind*, in practice, so
+# that a question can upgrade it with kubeadm. Applied to the aux role only: the
+# primary is what every other question runs on and always gets the pin. The value
+# has been shape-checked twice upstream (examService.js, prepare-exam-env.sh); this
+# is the point where it takes effect, after the pin has been read.
+if [ "$ROLE" = "aux" ] && [ -n "$NODE_IMAGE_OVERRIDE" ]; then
+    KIND_NODE_IMAGE="$NODE_IMAGE_OVERRIDE"
+fi
+
+MARKER_DIR=/home/candidate/.kube
+
+# ===============================================================================
+#   Per-role configuration
+#
+#   The two clusters run inside the same docker daemon, so everything either of
+#   them binds has to differ. Two of these are not merely bookkeeping:
+#
+#     * podSubnet. kind puts every cluster on one shared docker bridge unless it
+#       is told otherwise, and Calico's default pool is 192.168.0.0/16 for both.
+#       Two clusters handing out pod addresses from the same range on the same L2
+#       segment produce conflicting routes and cross-cluster BGP/VXLAN peers. The
+#       aux cluster therefore gets its own pool AND its own docker network.
+#     * CALICO_IPV4POOL_CIDR. calico.yaml ships that variable commented out, so
+#       Calico silently uses 192.168.0.0/16 whatever kubeadm was told. Any pod
+#       subnet other than that default has to be injected into the manifest --
+#       see apply_calico() below.
+# ===============================================================================
+CALICO_DEFAULT_POOL="192.168.0.0/16"
+
+if [ "$ROLE" = "aux" ]; then
+    API_PORT=6444
+    SSH_PORT_BASE=2232
+    POD_SUBNET="192.169.0.0/16"
+    SERVICE_SUBNET="10.97.0.0/16"
+    DOCKER_NETWORK="kind-aux"
+    KUBECONFIG_PATH="${MARKER_DIR}/kubeconfig-aux"
+    KIND_CONFIG=/tmp/kind-config-aux.yaml
+    MARKER_PREFIX="aux-"
+else
+    ROLE=primary
+    API_PORT=6443
+    SSH_PORT_BASE=2222
+    POD_SUBNET="$CALICO_DEFAULT_POOL"
+    SERVICE_SUBNET=""
+    DOCKER_NETWORK=""
+    KUBECONFIG_PATH="${MARKER_DIR}/kubeconfig"
+    KIND_CONFIG=/tmp/kind-config.yaml
+    MARKER_PREFIX=""
+fi
+
+# The aux cluster is created in parallel with the primary one, so both write to
+# this container's PID 1 stdout at once. Tag every line with the role or the two
+# streams are unreadable interleaved.
+log() { echo "$(date '+%Y-%m-%d %H:%M:%S') | [${ROLE}] $*"; }
+
+# Its own docker network keeps the aux node containers off the bridge the primary
+# cluster's pod routes live on.
+if [ -n "$DOCKER_NETWORK" ]; then
+    export KIND_EXPERIMENTAL_DOCKER_NETWORK="$DOCKER_NETWORK"
+    log "Using docker network ${DOCKER_NETWORK}"
+fi
+
+log "Using kind node image ${KIND_NODE_IMAGE}"
+log "Using Calico ${CALICO_VERSION}"
+
+if ! command -v kind >/dev/null 2>&1; then
+    log "ERROR: the kind binary is missing from this image."
+    log "ERROR: rebuild the cluster image with:  ./start.sh --rebuild"
+    exit 1
+fi
+
+# ===============================================================================
+#   Cluster configuration
+#
+#   podSubnet is set to Calico's own default pool (192.168.0.0/16) rather than
+#   kind's 10.244.0.0/16. calico.yaml ships with CALICO_IPV4POOL_CIDR commented
+#   out, so Calico would otherwise hand out addresses from a range kubeadm never
+#   assigned to the nodes.
+#
+#   Each node maps its sshd out to a distinct port on this container, which is
+#   what lets the jumphost reach it: the node containers live on this container's
+#   own docker bridge and are not routable from anywhere else. controlplane
+#   -> 2222, node01 -> 2223, node02 -> 2224, matching ~/.ssh/config on the
+#   jumphost. The aux cluster's single node starts at 2232, leaving room for more
+#   primary workers in between.
+# ===============================================================================
+rm -f "$KIND_CONFIG"
+
+cat > "$KIND_CONFIG" <<EOF
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ${CLUSTER_NAME}
+networking:
+  disableDefaultCNI: true
+  podSubnet: "${POD_SUBNET}"
+EOF
+
+if [ -n "$SERVICE_SUBNET" ]; then
+    cat >> "$KIND_CONFIG" <<EOF
+  serviceSubnet: "${SERVICE_SUBNET}"
+EOF
+fi
+
+cat >> "$KIND_CONFIG" <<EOF
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 6443
+        hostPort: ${API_PORT}
+        listenAddress: "0.0.0.0"
+      - containerPort: 22
+        hostPort: ${SSH_PORT_BASE}
+        listenAddress: "0.0.0.0"
+    # No apiVersion on the patch. kind matches a kubeadm patch on its "kind:" field
+    # and generates a kubeadm config whose apiVersion tracks the node image's
+    # Kubernetes minor (v1beta3 for 1.34). Naming a version that does not match
+    # what kind generated makes the patch silently do nothing -- the cluster comes
+    # up fine and only fails later, when kubectl rejects the apiserver certificate
+    # for a name that never made it into the SAN list.
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          certSANs:
+            - "k8s-api-server"
+            - "localhost"
+            - "127.0.0.1"
+EOF
+
+i=1
+while [ "$i" -le "$NUM_WORKERS" ]; do
+    cat >> "$KIND_CONFIG" <<EOF
+  - role: worker
+    extraPortMappings:
+      - containerPort: 22
+        hostPort: $((SSH_PORT_BASE + i))
+        listenAddress: "0.0.0.0"
+EOF
+    i=$((i + 1))
+done
+
+log "Creating kind cluster with configuration..."
+log "├── Name:  $CLUSTER_NAME"
+log "├── Image: $KIND_NODE_IMAGE"
+log "├── Config: $KIND_CONFIG"
+log "├── API server port: $API_PORT"
+log "├── Pod subnet: $POD_SUBNET"
+log "└── Number of nodes: $((NUM_WORKERS + 1)) (1 control-plane + $NUM_WORKERS workers)"
+
+# No --wait here. disableDefaultCNI means no node can reach Ready until Calico is
+# applied further down, so any wait at this point is five minutes of warm-up spent
+# guaranteeing a timeout.
+if ! kind create cluster --name "$CLUSTER_NAME" --image "$KIND_NODE_IMAGE" \
+        --config "$KIND_CONFIG"; then
+    log "ERROR: kind cluster creation failed"
+    exit 1
+fi
+
+# ===============================================================================
+#   Kubeconfig
+#   kind writes 127.0.0.1:6443, which is this container. The jumphost reaches the
+#   api server by service name, so rewrite the server the way the k3d path does.
+# ===============================================================================
+mkdir -p "$MARKER_DIR"
+kind get kubeconfig --name "$CLUSTER_NAME" > "$KUBECONFIG_PATH"
+sed -i 's|server: https://127\.0\.0\.1:\([0-9]*\)|server: https://k8s-api-server:\1|' "$KUBECONFIG_PATH"
+sed -i 's|server: https://0\.0\.0\.0:\([0-9]*\)|server: https://k8s-api-server:\1|' "$KUBECONFIG_PATH"
+chown candidate: "$KUBECONFIG_PATH" 2>/dev/null || true
+log "Kubeconfig written to $KUBECONFIG_PATH"
+
+export KUBECONFIG="$KUBECONFIG_PATH"
+
+# The rewritten server name only works if "k8s-api-server" made it into the
+# apiserver certificate. Check it here rather than letting every later kubectl
+# call fail with an opaque x509 error.
+if ! kubectl --request-timeout=20s version >/dev/null 2>&1; then
+    log "ERROR: cannot reach the api server as k8s-api-server:${API_PORT}."
+    log "ERROR: the certSANs kubeadm patch did not take effect -- check that the"
+    log "ERROR: patch in $KIND_CONFIG still matches the kubeadm config"
+    log "ERROR: apiVersion that kind generates for this node image."
+    kubectl --request-timeout=20s version 2>&1 | head -5
+    exit 1
+fi
+log "API server reachable at k8s-api-server:${API_PORT}"
+
+# ===============================================================================
+#   Calico
+#   disableDefaultCNI leaves every node NotReady until a CNI lands, so this is not
+#   optional -- without it the cluster never becomes usable at all. kindnet is
+#   skipped because it does not implement NetworkPolicy, and a policy question
+#   graded by live traffic would pass no matter what the candidate wrote.
+#
+#   calico.yaml carries CALICO_IPV4POOL_CIDR commented out and falls back to
+#   192.168.0.0/16. That happens to be what the primary cluster asks kubeadm for,
+#   so the primary keeps applying the manifest straight from the URL. Any other
+#   pod subnet has to be injected, or Calico hands out addresses from a range
+#   kubeadm never assigned to the nodes -- the failure the podSubnet comment above
+#   describes, just moved one layer down.
+# ===============================================================================
+CALICO_URL="https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests/calico.yaml"
+CALICO_MANIFEST="/tmp/calico-${ROLE}.yaml"
+
+apply_calico() {
+    if [ "$POD_SUBNET" = "$CALICO_DEFAULT_POOL" ]; then
+        kubectl apply -f "$CALICO_URL"
+        return $?
+    fi
+
+    if ! curl -fsSL "$CALICO_URL" -o "$CALICO_MANIFEST"; then
+        log "WARNING: could not download the Calico manifest"
+        return 1
+    fi
+
+    # Uncomment the CALICO_IPV4POOL_CIDR env var and point it at this cluster's
+    # pod subnet. Both substitutions preserve the original indentation, since the
+    # commented lines sit at the same depth as the live ones around them.
+    sed -i \
+        -e 's|^\( *\)# \(- name: CALICO_IPV4POOL_CIDR\)$|\1\2|' \
+        -e 's|^\( *\)#   value: "'"$CALICO_DEFAULT_POOL"'"$|\1  value: "'"$POD_SUBNET"'"|' \
+        "$CALICO_MANIFEST"
+
+    # A future calico.yaml that words those lines differently would leave the
+    # variable commented out and the pool wrong, which shows up much later as pods
+    # that cannot talk to each other. Fail loudly here instead.
+    if ! grep -q "value: \"${POD_SUBNET}\"" "$CALICO_MANIFEST"; then
+        log "WARNING: could not set CALICO_IPV4POOL_CIDR to ${POD_SUBNET} in the"
+        log "WARNING: Calico ${CALICO_VERSION} manifest -- its commented-out"
+        log "WARNING: CALICO_IPV4POOL_CIDR block has changed shape."
+        return 1
+    fi
+
+    log "Set CALICO_IPV4POOL_CIDR=${POD_SUBNET} in ${CALICO_MANIFEST}"
+    kubectl apply -f "$CALICO_MANIFEST"
+}
+
+log "Installing Calico from ${CALICO_URL}"
+
+CALICO_OK=no
+for attempt in 1 2 3; do
+    if apply_calico; then
+        CALICO_OK=yes
+        break
+    fi
+    log "[WAITING] Calico manifest apply failed (attempt $attempt), retrying in 10s..."
+    sleep 10
+done
+
+if [ "$CALICO_OK" = yes ]; then
+    log "Waiting for calico-node to become ready..."
+    # "kubectl wait --for=condition=Ready pod -l k8s-app=calico-node" is the obvious
+    # thing to write here and it is wrong: when the DaemonSet's pods have not been
+    # created yet, kubectl wait does not wait, it fails immediately with "no matching
+    # resources found". The single-node aux cluster loses that race almost every time
+    # -- it reported "Calico did not come up" within one second of applying it, and
+    # left a marker saying NetworkPolicy was unenforced, while Calico was in fact
+    # healthy and handing out pod addresses. rollout status waits on the DaemonSet
+    # itself, so a pod that does not exist yet is something to wait for rather than a
+    # reason to give up.
+    if ! kubectl rollout status daemonset/calico-node -n kube-system --timeout=420s; then
+        CALICO_OK=no
+    fi
+fi
+
+if [ "$CALICO_OK" != yes ]; then
+    log "WARNING: Calico did not come up. Nodes will stay NotReady and"
+    log "WARNING: NetworkPolicy will not be enforced. Check this container's"
+    log "WARNING: outbound network access to raw.githubusercontent.com."
+fi
+
+# ===============================================================================
+#   Node readiness
+# ===============================================================================
+log "Waiting for all nodes to report Ready..."
+kubectl wait --for=condition=Ready nodes --all --timeout=300s \
+    || log "WARNING: not every node reached Ready"
+
+# ===============================================================================
+#   Node sshd
+#
+#   The whole point of this flavour is getting a shell on a node to edit static
+#   pod manifests, so every node gets an sshd with empty-password root login --
+#   the same deliberate no-auth posture as the rest of the simulator. kindest/node
+#   is a Debian image running systemd, so this is an apt install plus a unit
+#   start, and it needs outbound network from inside the node.
+#
+#   Node container names are fixed by kind: <cluster>-control-plane,
+#   <cluster>-worker, <cluster>-worker2, ...
+# ===============================================================================
+install_node_sshd() {
+    node_container="$1"
+    node_alias="$2"
+
+    log "Installing sshd on ${node_container} (${node_alias})"
+    docker exec "$node_container" bash -c '
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -qq >/dev/null 2>&1
+        apt-get install -y -qq openssh-server sudo vim less procps >/dev/null 2>&1
+        mkdir -p /run/sshd
+        sed -i "s/^#\?PermitRootLogin.*/PermitRootLogin yes/" /etc/ssh/sshd_config
+        sed -i "s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/" /etc/ssh/sshd_config
+        sed -i "s/^#\?PermitEmptyPasswords.*/PermitEmptyPasswords yes/" /etc/ssh/sshd_config
+        sed -i "s/^#\?UsePAM.*/UsePAM no/" /etc/ssh/sshd_config
+        passwd -d root
+        ssh-keygen -A
+        systemctl enable ssh >/dev/null 2>&1 || true
+        systemctl restart ssh
+    ' && return 0
+    return 1
+}
+
+SSHD_OK=yes
+
+NODE_LIST="${CLUSTER_NAME}-control-plane:controlplane"
+i=1
+while [ "$i" -le "$NUM_WORKERS" ]; do
+    if [ "$i" -eq 1 ]; then
+        worker_container="${CLUSTER_NAME}-worker"
+    else
+        worker_container="${CLUSTER_NAME}-worker${i}"
+    fi
+    NODE_LIST="${NODE_LIST} ${worker_container}:node0${i}"
+    i=$((i + 1))
+done
+
+for entry in $NODE_LIST; do
+    container="${entry%%:*}"
+    alias_name="${entry##*:}"
+    if ! install_node_sshd "$container" "$alias_name"; then
+        log "WARNING: could not install sshd on ${container}."
+        log "WARNING: 'ssh ${alias_name}' from the jumphost will not work, and any"
+        log "WARNING: question that edits a file on that node is unanswerable."
+        SSHD_OK=no
+    fi
+done
+
+# ===============================================================================
+#   Root kubeconfig on the aux control plane
+#
+#   The aux cluster is worked on the way the real exam is: the candidate runs
+#   "ssh aux" and drives kubectl on the node itself, rather than pointing a second
+#   kubeconfig at it from the jumphost. kubeadm leaves credentials in
+#   /etc/kubernetes/admin.conf; put them where a bare kubectl will find them so
+#   nothing has to be exported after logging in.
+#
+#   Deliberately not done on the primary cluster: labs there are written around
+#   the jumphost's kubectl, and this would be a behaviour change to questions that
+#   already work.
+# ===============================================================================
+if [ "$ROLE" = "aux" ]; then
+    if docker exec "${CLUSTER_NAME}-control-plane" bash -c \
+            'mkdir -p /root/.kube && cp /etc/kubernetes/admin.conf /root/.kube/config'; then
+        log "Wrote /root/.kube/config on ${CLUSTER_NAME}-control-plane"
+    else
+        log "WARNING: could not write /root/.kube/config on the aux control plane."
+        log "WARNING: kubectl after 'ssh aux' will need --kubeconfig=/etc/kubernetes/admin.conf"
+    fi
+
+    # The aux cluster is a control plane and nothing else, so its one node has to
+    # accept ordinary workloads. kind already drops the control-plane taint on a
+    # cluster it builds with no workers, but that is kind's behaviour rather than
+    # a guarantee this lab can rely on, and the failure it produces is a probe Pod
+    # that sits Pending for the whole exam. Removing an absent taint is a no-op.
+    kubectl taint nodes --all node-role.kubernetes.io/control-plane- >/dev/null 2>&1 || true
+    kubectl taint nodes --all node-role.kubernetes.io/master- >/dev/null 2>&1 || true
+    log "Control-plane taints cleared on the aux node"
+fi
+
+# ===============================================================================
+#   Node naming
+#   kind names its workers <cluster>-worker/-worker2, but every exam question and
+#   every CKA habit says node01/node02. Label each node with its jumphost alias so
+#   questions can address them either way.
+# ===============================================================================
+for entry in $NODE_LIST; do
+    container="${entry%%:*}"
+    alias_name="${entry##*:}"
+    kubectl label node "$container" "ck-x.io/alias=${alias_name}" --overwrite >/dev/null 2>&1 \
+        || log "WARNING: could not label node ${container}"
+done
+
+# ===============================================================================
+#   Image preload
+#
+#   Every node pulls independently, so an 18-question lab that uses three images
+#   would otherwise spend minutes of exam time on registry round trips, at the
+#   exact moment the candidate is trying to read a question. Pull them once, up
+#   front, and let a failure here be slow rather than fatal.
+# ===============================================================================
+for entry in $NODE_LIST; do
+    container="${entry%%:*}"
+    for image in docker.io/library/nginx:1.27.4 docker.io/library/busybox:1.36; do
+        docker exec "$container" crictl pull "$image" >/dev/null 2>&1 \
+            || log "WARNING: could not preload ${image} on ${container}"
+    done
+done
+log "Preloaded exam images on every node"
+
+# ===============================================================================
+#   Markers
+#   Read by a lab's q0_setup.sh so a question can skip a wait it can never win,
+#   the way cka/005 handles a missing Gateway API. The aux cluster writes its own
+#   set under an "aux-" prefix so the two clusters never clear each other's.
+# ===============================================================================
+rm -f "$MARKER_DIR/${MARKER_PREFIX}networkpolicy-unavailable" \
+      "$MARKER_DIR/${MARKER_PREFIX}node-ssh-unavailable"
+[ "$CALICO_OK" = yes ] || echo "unavailable" > "$MARKER_DIR/${MARKER_PREFIX}networkpolicy-unavailable"
+[ "$SSHD_OK"   = yes ] || echo "unavailable" > "$MARKER_DIR/${MARKER_PREFIX}node-ssh-unavailable"
+chown candidate: "$MARKER_DIR"/*unavailable 2>/dev/null || true
+
+log "Cluster nodes:"
+kubectl get nodes -o wide || true
+
+log "kubeadm (kind) cluster setup done"
+exit 0

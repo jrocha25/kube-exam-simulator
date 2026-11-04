@@ -1,0 +1,40 @@
+# Version control
+.git/
+.gitignore
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Build artifacts
+*.tar.gz
+*.tgz
+
+# Docker files
+Dockerfile
+docker-compose*.yml
+compose*.yaml
+.dockerignore
+
+# Logs
+logs/
+*.log
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Other unnecessary files
+*.gz
+*.zip
+*.tar
+*.rar 
